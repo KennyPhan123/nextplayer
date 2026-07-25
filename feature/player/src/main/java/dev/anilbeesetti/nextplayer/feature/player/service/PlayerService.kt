@@ -563,20 +563,18 @@ class PlayerService : MediaSessionService() {
                             ): MutableList<androidx.media3.exoplayer.mediacodec.MediaCodecInfo> {
                                 var infos = super.getDecoderInfos(mediaCodecSelector, format, requiresSecureDecoder)
                                 if (androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION == format.sampleMimeType) {
-                                    val profile = androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getCodecProfileAndLevel(format)?.first
-                                    if (profile == 7 || profile == 8) {
-                                        val hevcInfos = androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
+                                    val isDv7Or8 = format.codecs?.let { codecs ->
+                                        codecs.startsWith("dvh1.07") || codecs.startsWith("dvhe.07") ||
+                                        codecs.startsWith("dvh1.08") || codecs.startsWith("dvhe.08")
+                                    } ?: false
+
+                                    if (isDv7Or8) {
+                                        // Return HEVC decoders to force fallback and bypass broken DV decoders
+                                        return androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
                                             androidx.media3.common.MimeTypes.VIDEO_H265,
                                             requiresSecureDecoder,
                                             false
                                         )
-                                        if (infos.isEmpty()) {
-                                            infos = hevcInfos
-                                        } else {
-                                            val mutableInfos = java.util.ArrayList(infos)
-                                            mutableInfos.addAll(hevcInfos)
-                                            infos = mutableInfos
-                                        }
                                     }
                                 }
                                 return infos
