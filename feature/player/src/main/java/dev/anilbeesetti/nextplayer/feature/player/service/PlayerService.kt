@@ -572,20 +572,6 @@ class PlayerService : MediaSessionService() {
                                 }
                                 return infos
                             }
-
-                            override fun onInputFormatChanged(formatHolder: androidx.media3.exoplayer.FormatHolder): androidx.media3.exoplayer.DecoderReuseEvaluation? {
-                                val format = formatHolder.format
-                                if (format != null && androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION == format.sampleMimeType) {
-                                    // Rewrite the Format to HEVC so getMediaFormat doesn't crash the decoder
-                                    formatHolder.format = format.buildUpon()
-                                        .setSampleMimeType(androidx.media3.common.MimeTypes.VIDEO_H265)
-                                        // Set codecs to null so KEY_PROFILE is not forced on the decoder.
-                                        // Exynos decoders often crash if given a specific profile with DV NAL units.
-                                        .setCodecs(null)
-                                        .build()
-                                }
-                                return super.onInputFormatChanged(formatHolder)
-                            }
                         }
                     }
                 }
