@@ -534,47 +534,26 @@ class PlayerService : MediaSessionService() {
                 allowedVideoJoiningTimeMs: Long,
                 out: java.util.ArrayList<androidx.media3.exoplayer.Renderer>
             ) {
+                val customSelector = androidx.media3.exoplayer.mediacodec.MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+                    if (playerPreferences.dv7Fallback && androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION == mimeType) {
+                        androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
+                            androidx.media3.common.MimeTypes.VIDEO_H265, requiresSecureDecoder, requiresTunnelingDecoder
+                        )
+                    } else {
+                        mediaCodecSelector.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+                    }
+                }
+                
                 super.buildVideoRenderers(
                     context,
                     extensionRendererMode,
-                    mediaCodecSelector,
+                    customSelector,
                     enableDecoderFallback,
                     eventHandler,
                     eventListener,
                     allowedVideoJoiningTimeMs,
                     out
                 )
-                if (playerPreferences.dv7Fallback) {
-                    val index = out.indexOfFirst { it is androidx.media3.exoplayer.video.MediaCodecVideoRenderer }
-                    if (index != -1) {
-                        out[index] = object : androidx.media3.exoplayer.video.MediaCodecVideoRenderer(
-                            context,
-                            mediaCodecSelector,
-                            allowedVideoJoiningTimeMs,
-                            enableDecoderFallback,
-                            eventHandler,
-                            eventListener,
-                            50 // MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY
-                        ) {
-                            override fun getDecoderInfos(
-                                mediaCodecSelector: androidx.media3.exoplayer.mediacodec.MediaCodecSelector,
-                                format: androidx.media3.common.Format,
-                                requiresSecureDecoder: Boolean
-                            ): MutableList<androidx.media3.exoplayer.mediacodec.MediaCodecInfo> {
-                                var infos = super.getDecoderInfos(mediaCodecSelector, format, requiresSecureDecoder)
-                                if (androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION == format.sampleMimeType) {
-                                    // Force fallback for all DV tracks when this feature is enabled
-                                    return androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
-                                        androidx.media3.common.MimeTypes.VIDEO_H265,
-                                        requiresSecureDecoder,
-                                        false
-                                    )
-                                }
-                                return infos
-                            }
-                        }
-                    }
-                }
             }
         }.apply {
             setEnableDecoderFallback(true)
