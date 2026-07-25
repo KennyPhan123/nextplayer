@@ -591,6 +591,8 @@ class PlayerService : MediaSessionService() {
                                         // Rewrite the Format to HEVC so getMediaFormat doesn't crash the decoder
                                         formatHolder.format = format.buildUpon()
                                             .setSampleMimeType(androidx.media3.common.MimeTypes.VIDEO_H265)
+                                            // Provide standard HEVC Main10 codec string so the hardware decoder configures 10-bit pipeline
+                                            .setCodecs("hev1.2.4.L153.B0")
                                             .build()
                                     }
                                 }
