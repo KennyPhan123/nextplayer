@@ -120,4 +120,4 @@ Thanks to **Weblate** for providing free hosting for the project.
 
 ## License
 
-Next Player is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for more information.
+Next Player is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for more information. 
