@@ -99,7 +99,7 @@ private fun DecoderPreferencesContent(
                 PreferenceSwitch(
                     title = stringResource(R.string.dv7_fallback),
                     description = stringResource(R.string.dv7_fallback_desc),
-                    icon = NextIcons.Hdr,
+                    icon = NextIcons.Decoder,
                     isChecked = preferences.dv7Fallback,
                     onClick = { onEvent(DecoderPreferencesUiEvent.UpdateDv7Fallback(!preferences.dv7Fallback)) },
                     isLastItem = true,
