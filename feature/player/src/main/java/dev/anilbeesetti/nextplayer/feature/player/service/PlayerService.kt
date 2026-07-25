@@ -579,6 +579,23 @@ class PlayerService : MediaSessionService() {
                                 }
                                 return infos
                             }
+
+                            override fun onInputFormatChanged(formatHolder: androidx.media3.exoplayer.FormatHolder): androidx.media3.exoplayer.DecoderReuseEvaluation? {
+                                val format = formatHolder.format
+                                if (format != null && androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION == format.sampleMimeType) {
+                                    val isDv7Or8 = format.codecs?.let { codecs ->
+                                        codecs.startsWith("dvh1.07") || codecs.startsWith("dvhe.07") ||
+                                        codecs.startsWith("dvh1.08") || codecs.startsWith("dvhe.08")
+                                    } ?: false
+                                    if (isDv7Or8) {
+                                        // Rewrite the Format to HEVC so getMediaFormat doesn't crash the decoder
+                                        formatHolder.format = format.buildUpon()
+                                            .setSampleMimeType(androidx.media3.common.MimeTypes.VIDEO_H265)
+                                            .build()
+                                    }
+                                }
+                                return super.onInputFormatChanged(formatHolder)
+                            }
                         }
                     }
                 }
