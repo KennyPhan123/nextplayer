@@ -563,19 +563,12 @@ class PlayerService : MediaSessionService() {
                             ): MutableList<androidx.media3.exoplayer.mediacodec.MediaCodecInfo> {
                                 var infos = super.getDecoderInfos(mediaCodecSelector, format, requiresSecureDecoder)
                                 if (androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION == format.sampleMimeType) {
-                                    val isDv7Or8 = format.codecs?.let { codecs ->
-                                        codecs.startsWith("dvh1.07") || codecs.startsWith("dvhe.07") ||
-                                        codecs.startsWith("dvh1.08") || codecs.startsWith("dvhe.08")
-                                    } ?: false
-
-                                    if (isDv7Or8) {
-                                        // Return HEVC decoders to force fallback and bypass broken DV decoders
-                                        return androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
-                                            androidx.media3.common.MimeTypes.VIDEO_H265,
-                                            requiresSecureDecoder,
-                                            false
-                                        )
-                                    }
+                                    // Force fallback for all DV tracks when this feature is enabled
+                                    return androidx.media3.exoplayer.mediacodec.MediaCodecUtil.getDecoderInfos(
+                                        androidx.media3.common.MimeTypes.VIDEO_H265,
+                                        requiresSecureDecoder,
+                                        false
+                                    )
                                 }
                                 return infos
                             }
@@ -583,18 +576,12 @@ class PlayerService : MediaSessionService() {
                             override fun onInputFormatChanged(formatHolder: androidx.media3.exoplayer.FormatHolder): androidx.media3.exoplayer.DecoderReuseEvaluation? {
                                 val format = formatHolder.format
                                 if (format != null && androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION == format.sampleMimeType) {
-                                    val isDv7Or8 = format.codecs?.let { codecs ->
-                                        codecs.startsWith("dvh1.07") || codecs.startsWith("dvhe.07") ||
-                                        codecs.startsWith("dvh1.08") || codecs.startsWith("dvhe.08")
-                                    } ?: false
-                                    if (isDv7Or8) {
-                                        // Rewrite the Format to HEVC so getMediaFormat doesn't crash the decoder
-                                        formatHolder.format = format.buildUpon()
-                                            .setSampleMimeType(androidx.media3.common.MimeTypes.VIDEO_H265)
-                                            // Provide standard HEVC Main10 codec string so the hardware decoder configures 10-bit pipeline
-                                            .setCodecs("hev1.2.4.L153.B0")
-                                            .build()
-                                    }
+                                    // Rewrite the Format to HEVC so getMediaFormat doesn't crash the decoder
+                                    formatHolder.format = format.buildUpon()
+                                        .setSampleMimeType(androidx.media3.common.MimeTypes.VIDEO_H265)
+                                        // Provide standard HEVC Main10 codec string so the hardware decoder configures 10-bit pipeline
+                                        .setCodecs("hev1.2.4.L153.B0")
+                                        .build()
                                 }
                                 return super.onInputFormatChanged(formatHolder)
                             }
