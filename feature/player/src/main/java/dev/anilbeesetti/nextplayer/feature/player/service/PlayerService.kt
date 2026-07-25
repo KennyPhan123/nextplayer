@@ -579,8 +579,9 @@ class PlayerService : MediaSessionService() {
                                     // Rewrite the Format to HEVC so getMediaFormat doesn't crash the decoder
                                     formatHolder.format = format.buildUpon()
                                         .setSampleMimeType(androidx.media3.common.MimeTypes.VIDEO_H265)
-                                        // Provide standard HEVC Main10 codec string so the hardware decoder configures 10-bit pipeline
-                                        .setCodecs("hev1.2.4.L153.B0")
+                                        // Set codecs to null so KEY_PROFILE is not forced on the decoder.
+                                        // Exynos decoders often crash if given a specific profile with DV NAL units.
+                                        .setCodecs(null)
                                         .build()
                                 }
                                 return super.onInputFormatChanged(formatHolder)
