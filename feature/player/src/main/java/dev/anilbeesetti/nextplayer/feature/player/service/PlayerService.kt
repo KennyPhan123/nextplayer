@@ -524,6 +524,23 @@ class PlayerService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         val renderersFactory = object : NextRenderersFactory(applicationContext) {
+            override fun getCodecAdapterFactory(): androidx.media3.exoplayer.mediacodec.MediaCodecAdapter.Factory {
+                val defaultFactory = super.getCodecAdapterFactory()
+                return androidx.media3.exoplayer.mediacodec.MediaCodecAdapter.Factory { configuration ->
+                    if (playerPreferences.dv7Fallback && androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION == configuration.format.sampleMimeType) {
+                        if (android.os.Build.VERSION.SDK_INT >= 29) {
+                            configuration.mediaFormat.removeKey(android.media.MediaFormat.KEY_PROFILE)
+                        } else {
+                            configuration.mediaFormat.setInteger(android.media.MediaFormat.KEY_PROFILE, android.media.MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10)
+                        }
+                        if (android.os.Build.VERSION.SDK_INT >= 31) {
+                            configuration.mediaFormat.removeKey(android.media.MediaFormat.KEY_COLOR_TRANSFER_REQUEST)
+                        }
+                    }
+                    defaultFactory.createAdapter(configuration)
+                }
+            }
+
             override fun buildVideoRenderers(
                 context: android.content.Context,
                 extensionRendererMode: Int,
