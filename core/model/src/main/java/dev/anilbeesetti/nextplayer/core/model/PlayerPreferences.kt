@@ -70,4 +70,3 @@ data class PlayerPreferences(
         const val DEFAULT_CONTROLLER_AUTO_HIDE_TIMEOUT = 4
     }
 }
-
