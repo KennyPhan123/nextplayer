@@ -49,6 +49,14 @@ class DecoderPreferencesViewModel @Inject constructor(
         }
     }
 
+    private fun updateDv7Fallback(value: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(dv7Fallback = value)
+            }
+        }
+    }
+
     private fun updateDecoderPriority(value: DecoderPriority) {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {

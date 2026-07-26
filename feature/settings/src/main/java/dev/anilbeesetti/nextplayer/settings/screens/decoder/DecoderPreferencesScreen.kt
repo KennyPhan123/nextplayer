@@ -32,6 +32,7 @@ import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
 import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
 import dev.anilbeesetti.nextplayer.core.ui.components.PreferenceSwitch
 import dev.anilbeesetti.nextplayer.core.ui.components.RadioTextButton
+import dev.anilbeesetti.nextplayer.core.ui.components.PreferenceSwitch
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
 import dev.anilbeesetti.nextplayer.settings.composables.OptionsDialog
@@ -97,7 +98,7 @@ private fun DecoderPreferencesContent(
                     isFirstItem = true,
                 )
                 PreferenceSwitch(
-                    title = stringResource(R.string.dv7_fallback),
+title = stringResource(R.string.dv7_fallback),
                     description = stringResource(R.string.dv7_fallback_desc),
                     icon = NextIcons.Decoder,
                     isChecked = preferences.dv7Fallback,
@@ -142,3 +143,4 @@ private fun DecoderPreferencesScreenPreview() {
         )
     }
 }
+
