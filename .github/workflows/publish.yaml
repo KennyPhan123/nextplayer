@@ -32,7 +32,7 @@ jobs:
           validate-wrappers: true
 
       - name: Build app
-        run: ./gradlew assembleReleaseWithDebugSigning
+        run: ./gradlew assembleRelease-with-debug-signing
 
       - name: Rename Files
         run: |
@@ -53,3 +53,4 @@ jobs:
           name: v${{ env.VERSION_NAME }}
           generate_release_notes: true
           tag_name: v${{ env.VERSION_NAME }}
+

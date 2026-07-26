@@ -98,7 +98,7 @@ private fun DecoderPreferencesContent(
                     isFirstItem = true,
                 )
                 PreferenceSwitch(
-title = stringResource(R.string.dv7_fallback),
+                    title = stringResource(R.string.dv7_fallback),
                     description = stringResource(R.string.dv7_fallback_desc),
                     icon = NextIcons.Decoder,
                     isChecked = preferences.dv7Fallback,
@@ -143,4 +143,5 @@ private fun DecoderPreferencesScreenPreview() {
         )
     }
 }
+
 
