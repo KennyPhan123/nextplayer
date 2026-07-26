@@ -29,7 +29,7 @@ jobs:
           gradle-home-cache-cleanup: true
 
       - name: Build Project with gradle
-        run: ./gradlew assembleReleaseWithDebugSigning
+        run: ./gradlew assembleRelease-with-debug-signing
 
       - name: Run Local Tests
         run: ./gradlew test
@@ -42,27 +42,27 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: nextplayer-universal-release.apk
-          path: ./app/build/outputs/apk/releaseWithDebugSigning/app-universal-release.apk
+          path: ./app/build/outputs/apk/*/app-universal-*.apk
       - name: Upload artifact nextplayer-arm64-v8a-release.apk
         uses: actions/upload-artifact@v7
         with:
           name: nextplayer-arm64-v8a-release.apk
-          path: ./app/build/outputs/apk/releaseWithDebugSigning/app-arm64-v8a-release.apk
+          path: ./app/build/outputs/apk/*/app-arm64-v8a-*.apk
       - name: Upload artifact nextplayer-armeabi-v7a-release.apk
         uses: actions/upload-artifact@v7
         with:
           name: nextplayer-armeabi-v7a-release.apk
-          path: ./app/build/outputs/apk/releaseWithDebugSigning/app-armeabi-v7a-release.apk
+          path: ./app/build/outputs/apk/*/app-armeabi-v7a-*.apk
       - name: Upload artifact nextplayer-x86_64-release.apk
         uses: actions/upload-artifact@v7
         with:
           name: nextplayer-x86_64-release.apk
-          path: ./app/build/outputs/apk/releaseWithDebugSigning/app-x86_64-release.apk
+          path: ./app/build/outputs/apk/*/app-x86_64-*.apk
       - name: Upload artifact nextplayer-x86-release.apk
         uses: actions/upload-artifact@v7
         with:
           name: nextplayer-x86-release.apk
-          path: ./app/build/outputs/apk/releaseWithDebugSigning/app-x86-release.apk
+          path: ./app/build/outputs/apk/*/app-x86-*.apk
 
       - name: Upload build reports
         if: always()
