@@ -20,40 +20,67 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
 import kotlin.math.abs
 
-fun PointerEvent.calculateZoomXY(): Offset {
+/**
+ * Direction of a pinch-to-zoom gesture, locked once determined.
+ */
+enum class ZoomDirection { HORIZONTAL, VERTICAL }
+
+fun PointerEvent.calculateZoomXY(lockedDirection: ZoomDirection? = null): Offset {
     val pointers = changes.filter { it.pressed || it.previousPressed }
     if (pointers.size < 2) return Offset(1f, 1f)
-    
+
     val p1 = pointers[0]
     val p2 = pointers[1]
-    
+
     val currentDistanceX = kotlin.math.abs(p1.position.x - p2.position.x)
     val currentDistanceY = kotlin.math.abs(p1.position.y - p2.position.y)
-    
+
     val previousDistanceX = kotlin.math.abs(p1.previousPosition.x - p2.previousPosition.x)
     val previousDistanceY = kotlin.math.abs(p1.previousPosition.y - p2.previousPosition.y)
-    
+
     val previousDistance = kotlin.math.hypot(
         p1.previousPosition.x - p2.previousPosition.x,
-        p1.previousPosition.y - p2.previousPosition.y
+        p1.previousPosition.y - p2.previousPosition.y,
     )
-    
+
     if (previousDistance < 10f) return Offset(1f, 1f)
-    
+
     var deltaX = currentDistanceX - previousDistanceX
     var deltaY = currentDistanceY - previousDistanceY
-    
-    // Snap based on finger placement
-    if (previousDistanceX >= previousDistanceY) {
-        deltaY = 0f
-    } else {
-        deltaX = 0f
+
+    // Use the locked direction if available, otherwise snap based on current finger placement
+    when (lockedDirection) {
+        ZoomDirection.HORIZONTAL -> deltaY = 0f
+        ZoomDirection.VERTICAL -> deltaX = 0f
+        null -> {
+            if (previousDistanceX >= previousDistanceY) {
+                deltaY = 0f
+            } else {
+                deltaX = 0f
+            }
+        }
     }
-    
+
     val zoomX = 1f + (deltaX / previousDistance)
     val zoomY = 1f + (deltaY / previousDistance)
-    
+
     return Offset(zoomX, zoomY)
+}
+
+/**
+ * Determines the zoom direction from the initial finger placement of two pointers.
+ */
+fun PointerEvent.detectZoomDirection(): ZoomDirection? {
+    val pointers = changes.filter { it.pressed || it.previousPressed }
+    if (pointers.size < 2) return null
+
+    val p1 = pointers[0]
+    val p2 = pointers[1]
+
+    val distanceX = kotlin.math.abs(p1.position.x - p2.position.x)
+    val distanceY = kotlin.math.abs(p1.position.y - p2.position.y)
+
+    return if (distanceX >= distanceY) ZoomDirection.HORIZONTAL else ZoomDirection.VERTICAL
 }
 
 /**
@@ -91,6 +118,7 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
         val touchSlop = viewConfiguration.touchSlop
         var lockedToPanZoom = false
         var gestureStarted = false
+        var lockedZoomDirection: ZoomDirection? = null
 
         // Wait for at least one pointer to press down and set the first contact position
         val down: PointerInputChange = awaitFirstDown(
@@ -129,7 +157,7 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
                 pointerId = pointerInputChange.id
                 pointer = pointerInputChange
 
-                val zoomChange = event.calculateZoomXY()
+                val zoomChange = event.calculateZoomXY(lockedZoomDirection)
                 val rotationChange = event.calculateRotation()
                 val panChange = event.calculatePan()
 
@@ -153,6 +181,10 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
                     ) {
                         pastTouchSlop = true
                         lockedToPanZoom = panZoomLock && rotationMotion < touchSlop
+                        // Lock zoom direction once at gesture start
+                        if (lockedZoomDirection == null) {
+                            lockedZoomDirection = event.detectZoomDirection()
+                        }
                     }
                 }
 
