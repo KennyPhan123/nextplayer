@@ -86,6 +86,14 @@ the [Issues](https://github.com/anilbeesetti/nextplayer/issues) section.**
 - Subtitle delay
 - Network storage support (SMB/FTP/SFTP/WebDAV)
 
+## Custom Features & Fixes (KennyPhan123 Fork)
+This fork introduces several custom improvements and bug fixes:
+- **Dolby Vision (DV7) Fallback Fix**: Safely strips `KEY_PROFILE` and `KEY_COLOR_TRANSFER_REQUEST` to prevent black screens on Exynos devices when falling back to HEVC. Added setting to toggle this behavior.
+- **Independent Zoom & Axis Snapping**: Stretch video horizontally or vertically independently using pinch gestures, with axis snapping to prevent cross-axis zooming.
+- **PGS Subtitle Aspect Ratio Fix**: Subtitles rendered as bitmaps (like PGS) no longer stretch horizontally with the video content scale.
+- **Pin Subtitle to Video**: Added setting to lock subtitles to the video surface so they follow your zoom and pan gestures.
+- **PiP Pause Fix**: Fixed an issue preventing manual entry into Picture-in-Picture mode when playback is paused.
+- **CI/CD Improvements**: Configured GitHub Actions to automatically build and upload APKs with debug signing for easier sideloading.
 ## Planned Features
 
 - External Audio support
