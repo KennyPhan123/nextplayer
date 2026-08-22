@@ -125,7 +125,7 @@ class PictureInPictureState(
     fun enterPictureInPictureMode(): Boolean {
         if (pictureInPicture == null || isInPictureInPictureMode) return false
         return runCatching {
-            activity.enterPictureInPictureMode(buildPictureInPictureParams())
+            activity.enterPictureInPictureMode(buildPictureInPictureParams(isManualEnter = true))
         }.isSuccess
     }
 
@@ -230,11 +230,11 @@ class PictureInPictureState(
         )
     }
 
-    private fun buildPictureInPictureParams(): PictureInPictureParamsCompat =
+    private fun buildPictureInPictureParams(isManualEnter: Boolean = false): PictureInPictureParamsCompat =
         PictureInPictureParamsCompat.Builder().apply {
             setActions(actions)
             setSeamlessResizeEnabled(true)
-            setEnabled(autoEnter && player.isPlaying)
+            setEnabled(if (isManualEnter) true else (autoEnter && player.isPlaying))
             aspectRatio?.let { setAspectRatio(it) }
             sourceRectHint?.let { setSourceRectHint(it) }
         }.build()
