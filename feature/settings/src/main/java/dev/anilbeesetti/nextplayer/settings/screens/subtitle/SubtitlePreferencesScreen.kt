@@ -183,6 +183,13 @@ private fun SubtitlePreferencesContent(
                     icon = NextIcons.Style,
                     isChecked = uiState.preferences.applyEmbeddedStyles,
                     onClick = { onEvent(SubtitlePreferencesUiEvent.ToggleApplyEmbeddedStyles) },
+                )
+                PreferenceSwitch(
+                    title = stringResource(R.string.subtitle_pin_to_video),
+                    description = stringResource(R.string.subtitle_pin_to_video_desc),
+                    icon = NextIcons.Pinch,
+                    isChecked = uiState.preferences.subtitlePinToVideo,
+                    onClick = { onEvent(SubtitlePreferencesUiEvent.ToggleSubtitlePinToVideo) },
                     isLastItem = true
                 )
             }

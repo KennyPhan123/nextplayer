@@ -73,4 +73,5 @@ data class SubtitleConfiguration(
     val textSize: Int,
     val textBold: Boolean,
     val applyEmbeddedStyles: Boolean,
+    val pinToVideo: Boolean = true,
 )

@@ -140,6 +140,8 @@
     <string name="dv7_fallback_desc">Play Dolby Vision profile 7 content on HDR displays</string>
     <string name="embedded_styles">Embedded styles</string>
     <string name="embedded_styles_desc">Apply the embedded styles that are present in subtitle files, such as ASS and so on</string>
+    <string name="subtitle_pin_to_video">Pin subtitle to video</string>
+    <string name="subtitle_pin_to_video_desc">Subtitle moves with video when zooming or panning. Improves PGS/bitmap subtitle rendering</string>
     <string name="controller_timeout">Controller timeout</string>
     <string name="seek_increment">Seek increment</string>
     <string name="seconds">%1$s seconds</string>

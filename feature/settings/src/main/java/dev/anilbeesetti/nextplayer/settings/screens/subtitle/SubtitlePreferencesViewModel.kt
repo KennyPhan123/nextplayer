@@ -46,6 +46,7 @@ class SubtitlePreferencesViewModel @Inject constructor(
             SubtitlePreferencesUiEvent.ToggleApplyEmbeddedStyles -> toggleApplyEmbeddedStyles()
             is SubtitlePreferencesUiEvent.UpdateSubtitleEncoding -> updateSubtitleEncoding(event.value)
             SubtitlePreferencesUiEvent.ToggleUseSystemCaptionStyle -> toggleUseSystemCaptionStyle()
+            SubtitlePreferencesUiEvent.ToggleSubtitlePinToVideo -> toggleSubtitlePinToVideo()
         }
     }
 
@@ -114,6 +115,12 @@ class SubtitlePreferencesViewModel @Inject constructor(
             preferencesRepository.updatePlayerPreferences { it.copy(useSystemCaptionStyle = !it.useSystemCaptionStyle) }
         }
     }
+
+    private fun toggleSubtitlePinToVideo() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(subtitlePinToVideo = !it.subtitlePinToVideo) }
+        }
+    }
 }
 
 @Stable
@@ -138,4 +145,5 @@ sealed interface SubtitlePreferencesUiEvent {
     data object ToggleApplyEmbeddedStyles : SubtitlePreferencesUiEvent
     data class UpdateSubtitleEncoding(val value: String) : SubtitlePreferencesUiEvent
     data object ToggleUseSystemCaptionStyle : SubtitlePreferencesUiEvent
+    data object ToggleSubtitlePinToVideo : SubtitlePreferencesUiEvent
 }
