@@ -350,6 +350,24 @@
 
     <!-- Network -->
     <string name="home">Home</string>
+    <string name="recents">Recents</string>
+    <string name="playlists">Playlists</string>
+    <string name="no_recently_played">No recently played videos</string>
+    <string name="no_recently_played_desc">Videos you watch will appear here</string>
+    <string name="played_ago">Played %s</string>
+    <string name="clear_history">Clear history</string>
+    <string name="remove_from_history">Remove from history</string>
+    <string name="create_playlist">Create playlist</string>
+    <string name="playlist_name">Playlist name</string>
+    <string name="add_to_playlist">Add to playlist</string>
+    <string name="delete_playlist">Delete playlist</string>
+    <string name="rename_playlist">Rename playlist</string>
+    <string name="empty_playlist">This playlist is empty</string>
+    <string name="empty_playlist_desc">Add videos to this playlist from the Home tab</string>
+    <string name="remove_from_playlist">Remove from playlist</string>
+    <string name="no_playlists">No playlists yet</string>
+    <string name="no_playlists_desc">Create a playlist to organize your videos</string>
+    <string name="videos_count">%d videos</string>
     <string name="network">Network</string>
     <string name="add_connection">Add connection</string>
     <string name="edit_connection">Edit connection</string>

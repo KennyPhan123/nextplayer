@@ -48,6 +48,8 @@ import dev.anilbeesetti.nextplayer.core.ui.components.tvFocusRing
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.feature.network.navigation.NetworkRoute
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.MediaPickerRoute
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlists.PlaylistsRoute
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.recentlyplayed.RecentlyPlayedRoute
 
 /**
  * Top-level destinations shown in the bottom bar / nav rail. The first entry is the start (exit)
@@ -59,6 +61,8 @@ enum class TopLevelDestination(
     @StringRes val labelRes: Int,
 ) {
     MEDIA(MediaPickerRoute(), NextIcons.Home, R.string.home),
+    RECENTS(RecentlyPlayedRoute, NextIcons.History, R.string.recents),
+    PLAYLISTS(PlaylistsRoute, NextIcons.PlaylistPlay, R.string.playlists),
     NETWORK(NetworkRoute, NextIcons.Network, R.string.network),
 }
 

@@ -127,12 +127,16 @@ class MainActivity : ComponentActivity() {
                     )
 
                     val mediaStack = navState.backStacks.getValue(TopLevelDestination.MEDIA.route)
+                    val recentsStack = navState.backStacks.getValue(TopLevelDestination.RECENTS.route)
+                    val playlistsStack = navState.backStacks.getValue(TopLevelDestination.PLAYLISTS.route)
                     val networkStack = navState.backStacks.getValue(TopLevelDestination.NETWORK.route)
 
-                    // Media and network entries navigate within their own tab's stack; settings is
+                    // Each tab's entries navigate within their own tab's stack; settings is
                     // shared, so it navigates within whichever tab it was opened from (the current one).
                     val provider = entryProvider {
                         mediaNavGraph(context = this@MainActivity, backStack = mediaStack)
+                        recentsNavGraph(context = this@MainActivity, backStack = recentsStack)
+                        playlistsNavGraph(context = this@MainActivity, backStack = playlistsStack)
                         networkNavGraph(context = this@MainActivity, backStack = networkStack)
                         settingsNavGraph(backStack = navState.currentStack)
                     }

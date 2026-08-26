@@ -168,4 +168,5 @@ object NextIcons {
     val Image = Icons.Rounded.Image
     val Frame = Icons.Rounded.FilterFrames
     val Lock = Icons.Rounded.Lock
+    val PlaylistPlay = Icons.AutoMirrored.Rounded.PlaylistPlay
 }
