@@ -355,7 +355,6 @@
     <string name="no_recently_played">No recently played videos</string>
     <string name="no_recently_played_desc">Videos you watch will appear here</string>
     <string name="played_ago">Played %s</string>
-    <string name="clear_history">Clear history</string>
     <string name="remove_from_history">Remove from history</string>
     <string name="create_playlist">Create playlist</string>
     <string name="playlist_name">Playlist name</string>
