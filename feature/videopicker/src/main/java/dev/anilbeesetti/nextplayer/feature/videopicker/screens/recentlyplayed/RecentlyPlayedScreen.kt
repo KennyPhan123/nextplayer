@@ -2,9 +2,6 @@ package dev.anilbeesetti.nextplayer.feature.videopicker.screens.recentlyplayed
 
 import android.net.Uri
 import android.text.format.DateUtils
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,7 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.video.VideoFrameDecoder
+import coil3.request.crossfade
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import kotlinx.serialization.Serializable
@@ -140,8 +137,8 @@ fun RecentlyPlayedScreen(
                                 ) {
                                     AsyncImage(
                                         model = ImageRequest.Builder(LocalContext.current)
-                                            .data(recentVideo.video.uriString.toUri())
-                                            .decoderFactory(VideoFrameDecoder.Factory())
+                                            .data(recentVideo.video.uriString)
+                                            .crossfade(true)
                                             .build(),
                                         contentDescription = null,
                                         contentScale = ContentScale.Crop,

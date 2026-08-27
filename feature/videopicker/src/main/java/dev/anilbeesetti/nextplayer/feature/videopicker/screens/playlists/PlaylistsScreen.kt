@@ -1,7 +1,6 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlists
 
 import android.net.Uri
-import android.text.format.DateUtils
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -52,7 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.video.VideoFrameDecoder
+import coil3.request.crossfade
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import kotlinx.serialization.Serializable
@@ -342,8 +340,8 @@ fun PlaylistDetailScreen(
                                     ) {
                                         AsyncImage(
                                             model = ImageRequest.Builder(LocalContext.current)
-                                                .data(video.uriString.toUri())
-                                                .decoderFactory(VideoFrameDecoder.Factory())
+                                                .data(video.uriString)
+                                                .crossfade(true)
                                                 .build(),
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop,

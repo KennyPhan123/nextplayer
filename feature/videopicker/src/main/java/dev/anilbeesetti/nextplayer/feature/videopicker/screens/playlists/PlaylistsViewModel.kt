@@ -12,6 +12,7 @@ import dev.anilbeesetti.nextplayer.core.model.Video
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -39,20 +40,11 @@ class PlaylistsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val uiState: StateFlow<PlaylistsUiState> = playlistDao.getAllPlaylists()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-        .let { flow ->
-            kotlinx.coroutines.flow.flow {
-                flow.collect { playlists ->
-                    emit(
-                        when {
-                            playlists == null -> PlaylistsUiState.Loading
-                            playlists.isEmpty() -> PlaylistsUiState.Empty
-                            else -> PlaylistsUiState.Success(playlists)
-                        }
-                    )
-                }
-            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaylistsUiState.Loading)
+        .map { playlists ->
+            if (playlists.isEmpty()) PlaylistsUiState.Empty
+            else PlaylistsUiState.Success(playlists)
         }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaylistsUiState.Loading)
 
     fun createPlaylist(name: String) {
         viewModelScope.launch {
