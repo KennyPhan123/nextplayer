@@ -97,6 +97,14 @@ class RecentlyPlayedViewModel @Inject constructor(
         }
     }
 
+        fun removeMultipleFromHistory(uris: Set<String>) {
+        viewModelScope.launch {
+            val existing = uris.mapNotNull { mediumStateDao.get(it) }
+            val updated = existing.map { it.copy(lastPlayedTime = null) }
+            mediumStateDao.upsertAll(updated)
+        }
+    }
+
     fun clearAllHistory() {
         viewModelScope.launch {
             mediumStateDao.clearHistory()
