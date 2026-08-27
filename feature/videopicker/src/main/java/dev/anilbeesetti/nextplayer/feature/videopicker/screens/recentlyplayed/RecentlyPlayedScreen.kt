@@ -67,7 +67,7 @@ import androidx.navigation3.runtime.NavKey
 @Serializable
 object RecentlyPlayedRoute : NavKey
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RecentlyPlayedScreen(
     onPlayVideo: (Uri) -> Unit,
@@ -104,8 +104,16 @@ fun RecentlyPlayedScreen(
                         onCheckedChange = { isFabExpanded = !isFabExpanded },
                         modifier = Modifier
                     ) {
-                        val icon = animateIcon(checked = isFabExpanded)
-                        Icon(imageVector = icon, contentDescription = null)
+                        val icon by remember {
+                            androidx.compose.runtime.derivedStateOf {
+                                if (checkedProgress > 0.5f) NextIcons.Close else NextIcons.Play
+                            }
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.animateIcon(checkedProgress = { checkedProgress }),
+                        )
                     }
                 },
             ) {
@@ -136,7 +144,7 @@ fun RecentlyPlayedScreen(
                         )
                     },
                     text = {
-                        Text(text = stringResource(id = dev.anilbeesetti.nextplayer.core.ui.R.string.select_file))
+                        Text(text = stringResource(id = dev.anilbeesetti.nextplayer.core.ui.R.string.open_local_video))
                     },
                 )
             }
