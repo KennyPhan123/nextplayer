@@ -19,7 +19,7 @@ import javax.inject.Inject
 
 data class PlaylistDetailItem(
     val playlistItem: PlaylistItemEntity,
-    val video: Video?,
+    val video: Video,
 )
 
 sealed interface PlaylistsUiState {
@@ -80,10 +80,11 @@ class PlaylistDetailViewModel @Inject constructor(
             mediaRepository.observeVideos(),
         ) { items, videos ->
             val videoMap = videos.associateBy { it.uriString }
-            val detailItems = items.map { item ->
+            val detailItems = items.mapNotNull { item ->
+                val video = videoMap[item.videoUri] ?: return@mapNotNull null
                 PlaylistDetailItem(
                     playlistItem = item,
-                    video = videoMap[item.videoUri],
+                    video = video,
                 )
             }
             if (detailItems.isEmpty()) PlaylistDetailUiState.Empty

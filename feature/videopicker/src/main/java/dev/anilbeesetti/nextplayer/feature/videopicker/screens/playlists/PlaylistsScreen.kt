@@ -323,69 +323,57 @@ fun PlaylistDetailScreen(
                                     .fillMaxWidth()
                                     .combinedClickable(
                                         onClick = {
-                                            if (video != null) onPlayVideo(video.uriString.toUri())
+                                            onPlayVideo(video.uriString.toUri())
                                         },
                                         onLongClick = { showMenu = true },
                                     )
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                if (video != null) {
-                                    // Thumbnail
-                                    Box(
-                                        modifier = Modifier
-                                            .width(128.dp)
-                                            .aspectRatio(16f / 9f)
-                                            .clip(RoundedCornerShape(8.dp)),
-                                    ) {
-                                        AsyncImage(
-                                            model = ImageRequest.Builder(LocalContext.current)
-                                                .data(video.uriString)
-                                                .crossfade(true)
-                                                .build(),
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
-                                        if (video.duration > 0) {
-                                            Text(
-                                                text = formatDuration(video.duration),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier
-                                                    .align(Alignment.BottomEnd)
-                                                    .padding(4.dp)
-                                                    .clip(RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.width(12.dp))
-
-                                    Column(modifier = Modifier.weight(1f)) {
+                                // Thumbnail
+                                Box(
+                                    modifier = Modifier
+                                        .width(128.dp)
+                                        .aspectRatio(16f / 9f)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                ) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(video.uriString)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                    if (video.duration > 0) {
                                         Text(
-                                            text = video.displayName,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = video.parentPath,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
+                                            text = video.formattedDuration,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(4.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 4.dp, vertical = 2.dp),
                                         )
                                     }
-                                } else {
-                                    // Video not found / deleted
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = item.playlistItem.videoUri,
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        text = video.displayName,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = video.parentPath,
+                                        style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.weight(1f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
