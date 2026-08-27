@@ -44,6 +44,8 @@ import dev.anilbeesetti.nextplayer.navigation.TopLevelDestination
 import dev.anilbeesetti.nextplayer.navigation.isNavigationBetweenTopLevelDestinations
 import dev.anilbeesetti.nextplayer.navigation.mediaNavGraph
 import dev.anilbeesetti.nextplayer.navigation.networkNavGraph
+import dev.anilbeesetti.nextplayer.navigation.recentsNavGraph
+import dev.anilbeesetti.nextplayer.navigation.playlistsNavGraph
 import dev.anilbeesetti.nextplayer.navigation.rememberResponsiveNavigationSceneDecoratorStrategy
 import dev.anilbeesetti.nextplayer.navigation.rememberTopLevelNavState
 import dev.anilbeesetti.nextplayer.navigation.settingsNavGraph
