@@ -70,6 +70,7 @@ object RecentlyPlayedRoute : NavKey
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RecentlyPlayedScreen(
+    onSettingsClick: () -> Unit,
     onPlayVideo: (Uri) -> Unit,
     viewModel: RecentlyPlayedViewModel = hiltViewModel(),
 ) {
@@ -120,6 +121,14 @@ fun RecentlyPlayedScreen(
             TopAppBar(
                 title = { Text(text = stringResource(coreUiR.string.recents)) },
                 actions = {
+                    androidx.compose.material3.IconButton(
+                        onClick = onSettingsClick,
+                    ) {
+                        Icon(
+                            imageVector = NextIcons.Settings,
+                            contentDescription = stringResource(coreUiR.string.settings),
+                        )
+                    }
                     if (uiState is RecentlyPlayedUiState.Success) {
                         androidx.compose.material3.IconButton(
                             onClick = { showClearConfirmation = true },
@@ -127,6 +136,7 @@ fun RecentlyPlayedScreen(
                             Icon(
                                 imageVector = NextIcons.DeleteSweep,
                                 contentDescription = stringResource(coreUiR.string.clear_history),
+                                tint = MaterialTheme.colorScheme.error,
                             )
                         }
                     }

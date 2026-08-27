@@ -74,6 +74,7 @@ data class PlaylistDetailRoute(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistsScreen(
+    onSettingsClick: () -> Unit,
     onOpenPlaylist: (Long, String) -> Unit,
     viewModel: PlaylistsViewModel = hiltViewModel(),
 ) {
@@ -84,6 +85,16 @@ fun PlaylistsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(coreUiR.string.playlists)) },
+                actions = {
+                    androidx.compose.material3.IconButton(
+                        onClick = onSettingsClick,
+                    ) {
+                        Icon(
+                            imageVector = dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons.Settings,
+                            contentDescription = stringResource(coreUiR.string.settings),
+                        )
+                    }
+                },
             )
         },
         floatingActionButton = {

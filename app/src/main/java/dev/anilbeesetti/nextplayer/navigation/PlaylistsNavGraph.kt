@@ -8,12 +8,14 @@ import androidx.navigation3.runtime.NavKey
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToPlaylistDetail
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.playlistDetailEntry
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.playlistsEntry
+import dev.anilbeesetti.nextplayer.navigation.navigateToSettings
 
 fun EntryProviderScope<NavKey>.playlistsNavGraph(
     context: Context,
     backStack: NavBackStack<NavKey>,
 ) {
     playlistsEntry(
+        onSettingsClick = backStack::navigateToSettings,
         onOpenPlaylist = { id, name -> backStack.navigateToPlaylistDetail(id, name) },
     )
 

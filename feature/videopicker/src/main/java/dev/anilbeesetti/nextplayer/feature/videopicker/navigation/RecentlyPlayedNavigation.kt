@@ -7,10 +7,12 @@ import dev.anilbeesetti.nextplayer.feature.videopicker.screens.recentlyplayed.Re
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.recentlyplayed.RecentlyPlayedScreen
 
 fun EntryProviderScope<NavKey>.recentlyPlayedEntry(
+    onSettingsClick: () -> Unit,
     onPlayVideo: (Uri) -> Unit,
 ) {
     entry<RecentlyPlayedRoute> {
         RecentlyPlayedScreen(
+            onSettingsClick = onSettingsClick,
             onPlayVideo = onPlayVideo,
         )
     }

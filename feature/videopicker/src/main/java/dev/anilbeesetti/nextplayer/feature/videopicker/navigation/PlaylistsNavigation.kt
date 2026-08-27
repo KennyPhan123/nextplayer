@@ -10,10 +10,12 @@ import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlists.Playlis
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlists.PlaylistsScreen
 
 fun EntryProviderScope<NavKey>.playlistsEntry(
+    onSettingsClick: () -> Unit,
     onOpenPlaylist: (Long, String) -> Unit,
 ) {
     entry<PlaylistsRoute> {
         PlaylistsScreen(
+            onSettingsClick = onSettingsClick,
             onOpenPlaylist = onOpenPlaylist,
         )
     }
