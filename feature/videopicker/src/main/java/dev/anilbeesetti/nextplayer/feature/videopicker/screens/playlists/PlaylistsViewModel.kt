@@ -57,12 +57,6 @@ class PlaylistsViewModel @Inject constructor(
             playlistDao.deletePlaylist(id)
         }
     }
-
-    fun renamePlaylist(id: Long, name: String) {
-        viewModelScope.launch {
-            playlistDao.renamePlaylist(id, name)
-        }
-    }
 }
 
 @HiltViewModel
@@ -71,7 +65,7 @@ class PlaylistDetailViewModel @Inject constructor(
     private val mediaRepository: MediaRepository,
 ) : ViewModel() {
 
-    private var _playlistId: Long = 0
+    private var _playlistId: Long = -1L
 
     fun setPlaylistId(playlistId: Long): StateFlow<PlaylistDetailUiState> {
         _playlistId = playlistId

@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.automirrored.rounded.DriveFileMove
-import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
+import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AppSettingsAlt
@@ -169,5 +169,5 @@ object NextIcons {
     val Image = Icons.Rounded.Image
     val Frame = Icons.Rounded.FilterFrames
     val Lock = Icons.Rounded.Lock
-    val PlaylistPlay = Icons.AutoMirrored.Rounded.PlaylistPlay
+    val PlaylistPlay = Icons.Rounded.PlaylistPlay
 }

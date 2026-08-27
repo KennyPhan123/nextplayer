@@ -45,8 +45,8 @@ class RecentlyPlayedViewModel @Inject constructor(
     ) { mediaStates, videos ->
         val videoMap = videos.associateBy { it.uriString }
         val recentVideos = mediaStates
-            .filter { it.lastPlayedTime != null && it.lastPlayedTime > 0 }
-            .sortedByDescending { it.lastPlayedTime }
+            .filter { (it.lastPlayedTime ?: 0L) > 0L }
+            .sortedByDescending { it.lastPlayedTime ?: 0L }
             .mapNotNull { state ->
                 val video = videoMap[state.uriString] ?: return@mapNotNull null
                 val percentage = if (video.duration > 0) {
@@ -54,7 +54,7 @@ class RecentlyPlayedViewModel @Inject constructor(
                 } else 0f
                 RecentVideo(
                     video = video,
-                    lastPlayedTime = state.lastPlayedTime!!,
+                    lastPlayedTime = state.lastPlayedTime ?: 0L,
                     playbackPosition = state.playbackPosition,
                     playedPercentage = percentage,
                 )

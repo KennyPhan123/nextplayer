@@ -162,7 +162,7 @@ fun RecentlyPlayedScreen(
                                     // Progress bar
                                     if (recentVideo.playedPercentage > 0f) {
                                         LinearProgressIndicator(
-                                            progress = { recentVideo.playedPercentage / 100f },
+                                            progress = recentVideo.playedPercentage / 100f,
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .height(3.dp)
