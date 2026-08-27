@@ -2,6 +2,18 @@ package dev.anilbeesetti.nextplayer.feature.videopicker.screens.recentlyplayed
 
 import android.net.Uri
 import android.text.format.DateUtils
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.NetworkUrlDialog
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -63,11 +75,71 @@ fun RecentlyPlayedScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    val selectVideoFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { it?.let { onPlayVideo(it) } },
+    )
+    var isFabExpanded by rememberSaveable { mutableStateOf(false) }
+    var showUrlDialog by rememberSaveable { mutableStateOf(false) }
+
+    if (showUrlDialog) {
+        dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.NetworkUrlDialog(
+            onDismiss = { showUrlDialog = false },
+            onDone = { onPlayVideo(it.toUri()) },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(coreUiR.string.recents)) },
             )
+        },
+        floatingActionButton = {
+            FloatingActionButtonMenu(
+                expanded = isFabExpanded,
+                button = {
+                    ToggleFloatingActionButton(
+                        checked = isFabExpanded,
+                        onCheckedChange = { isFabExpanded = !isFabExpanded },
+                        modifier = Modifier
+                    ) {
+                        val icon = animateIcon(checked = isFabExpanded)
+                        Icon(imageVector = icon, contentDescription = null)
+                    }
+                },
+            ) {
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        isFabExpanded = false
+                        showUrlDialog = true
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = NextIcons.Network,
+                            contentDescription = null,
+                        )
+                    },
+                    text = {
+                        Text(text = stringResource(id = dev.anilbeesetti.nextplayer.core.ui.R.string.open_network_stream))
+                    },
+                )
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        isFabExpanded = false
+                        selectVideoFileLauncher.launch("video/*")
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = NextIcons.FileOpen,
+                            contentDescription = null,
+                        )
+                    },
+                    text = {
+                        Text(text = stringResource(id = dev.anilbeesetti.nextplayer.core.ui.R.string.select_file))
+                    },
+                )
+            }
         },
     ) { paddingValues ->
         when (val state = uiState) {

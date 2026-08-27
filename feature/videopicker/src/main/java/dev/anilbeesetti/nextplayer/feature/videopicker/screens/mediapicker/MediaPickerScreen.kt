@@ -1070,7 +1070,7 @@ private fun SetupPinHeader(
 }
 
 @Composable
-private fun NetworkUrlDialog(
+internal fun NetworkUrlDialog(
     onDismiss: () -> Unit,
     onDone: (String) -> Unit,
 ) {

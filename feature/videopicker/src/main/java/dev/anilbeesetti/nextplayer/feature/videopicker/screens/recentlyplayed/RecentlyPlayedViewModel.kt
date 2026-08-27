@@ -48,8 +48,35 @@ class RecentlyPlayedViewModel @Inject constructor(
             .filter { (it.lastPlayedTime ?: 0L) > 0L }
             .sortedByDescending { it.lastPlayedTime ?: 0L }
             .mapNotNull { state ->
-                val video = videoMap[state.uriString] ?: return@mapNotNull null
-                val percentage = if (video.duration > 0) {
+                var video = videoMap[state.uriString]
+                if (video == null) {
+                    val isNetwork = state.uriString.let { uri ->
+                        uri.startsWith("http", ignoreCase = true) ||
+                        uri.startsWith("smb", ignoreCase = true) ||
+                        uri.startsWith("rtmp", ignoreCase = true) ||
+                        uri.startsWith("rtsp", ignoreCase = true) ||
+                        uri.startsWith("tcp", ignoreCase = true) ||
+                        uri.startsWith("udp", ignoreCase = true)
+                    }
+                    if (isNetwork) {
+                        video = Video(
+                            id = 0,
+                            path = state.uriString,
+                            parentPath = "",
+                            duration = 0,
+                            uriString = state.uriString,
+                            nameWithExtension = state.uriString.substringAfterLast('/').substringBefore('?').ifEmpty { state.uriString },
+                            width = 0,
+                            height = 0,
+                            size = 0,
+                            formattedDuration = "",
+                            formattedFileSize = ""
+                        )
+                    } else {
+                        return@mapNotNull null
+                    }
+                }
+                val percentage = if (video!!.duration > 0) {
                     (state.playbackPosition.toFloat() / video.duration * 100).coerceIn(0f, 100f)
                 } else 0f
                 RecentVideo(
