@@ -96,4 +96,10 @@ class RecentlyPlayedViewModel @Inject constructor(
             mediumStateDao.upsert(existing.copy(lastPlayedTime = null))
         }
     }
+
+    fun clearAllHistory() {
+        viewModelScope.launch {
+            mediumStateDao.clearHistory()
+        }
+    }
 }

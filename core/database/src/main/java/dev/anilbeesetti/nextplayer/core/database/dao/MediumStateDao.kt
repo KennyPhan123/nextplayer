@@ -26,4 +26,7 @@ interface MediumStateDao {
 
     @Query("DELETE FROM media_state WHERE uri in (:uris)")
     suspend fun delete(uris: List<String>)
+
+    @Query("UPDATE media_state SET last_played_time = NULL")
+    suspend fun clearHistory()
 }

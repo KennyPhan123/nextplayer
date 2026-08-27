@@ -81,6 +81,7 @@ fun RecentlyPlayedScreen(
     )
     var isFabExpanded by rememberSaveable { mutableStateOf(false) }
     var showUrlDialog by rememberSaveable { mutableStateOf(false) }
+    var showClearConfirmation by rememberSaveable { mutableStateOf(false) }
 
     if (showUrlDialog) {
         dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.NetworkUrlDialog(
@@ -89,10 +90,47 @@ fun RecentlyPlayedScreen(
         )
     }
 
+    if (showClearConfirmation) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showClearConfirmation = false },
+            title = { Text(stringResource(coreUiR.string.clear_history)) },
+            text = { Text("Are you sure you want to clear your playback history?") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showClearConfirmation = false
+                        viewModel.clearAllHistory()
+                    }
+                ) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { showClearConfirmation = false }
+                ) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(coreUiR.string.recents)) },
+                actions = {
+                    if (uiState is RecentlyPlayedUiState.Success) {
+                        androidx.compose.material3.IconButton(
+                            onClick = { showClearConfirmation = true },
+                        ) {
+                            Icon(
+                                imageVector = NextIcons.DeleteSweep,
+                                contentDescription = stringResource(coreUiR.string.clear_history),
+                            )
+                        }
+                    }
+                },
             )
         },
         floatingActionButton = {
