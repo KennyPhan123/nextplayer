@@ -46,10 +46,6 @@ jobs:
             exit 1
           }
 
-      - name: Report generated Room schema
-        run: |
-          base64 -w0 core/database/schemas/dev.anilbeesetti.nextplayer.core.database.MediaDatabase/14.json | fold -w3000 | awk '{print "::notice::ROOM14_" NR " " $0}' 
-
       - name: Run Local Unit Tests
         id: tests
         continue-on-error: true
@@ -66,7 +62,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          ./gradlew :core:data:ktlintCheck :core:database:ktlintCheck :core:model:ktlintCheck :feature:player:ktlintCheck :feature:settings:ktlintCheck 2>&1 | tee /tmp/nextplayer-lint.log || {
+          ./gradlew ktlintCheck 2>&1 | tee /tmp/nextplayer-lint.log || {
             message=$(grep -Ei "(error|failed|what went wrong|cause|exception|\.kt:[0-9])" /tmp/nextplayer-lint.log | tail -n 35 | tr "\n" "|"); echo "::error::$message"
             exit 1
           }
