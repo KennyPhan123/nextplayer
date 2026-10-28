@@ -42,9 +42,12 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew assembleDebug 2>&1 | tee /tmp/nextplayer-build.log || {
-            tail -n 100 /tmp/nextplayer-build.log | while IFS= read -r line; do echo "::error::$line"; done
+            message=$(grep -Ei "(^e:|error|failed|what went wrong|cause|exception)" /tmp/nextplayer-build.log | tail -n 20 | tr "\n" "|"); echo "::error::$message"
             exit 1
           }
+
+      - name: Report generated Room schema
+        run: echo "::notice::ROOM_SCHEMA_14 $(base64 -w0 core/database/schemas/dev.anilbeesetti.nextplayer.core.database.MediaDatabase/14.json)"
 
       - name: Run Local Unit Tests
         id: tests
@@ -52,9 +55,10 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew testDebugUnitTest 2>&1 | tee /tmp/nextplayer-tests.log || {
-            tail -n 100 /tmp/nextplayer-tests.log | while IFS= read -r line; do echo "::error::$line"; done
+            message=$(grep -Ei "(^e:|error|failed|what went wrong|cause|exception)" /tmp/nextplayer-tests.log | tail -n 20 | tr "\n" "|"); echo "::error::$message"
             exit 1
           }
+          python3 -c 'import glob, xml.etree.ElementTree as ET, sys; reports = [ET.parse(p).getroot() for p in glob.glob("**/build/test-results/testDebugUnitTest/TEST-*.xml", recursive=True)]; failures = sum(int(r.get("failures", 0)) + int(r.get("errors", 0)) for r in reports); print(f"::error::{failures} unit tests failed" if failures else f"{len(reports)} test reports passed"); sys.exit(bool(failures))'
 
       - name: Lint Checks
         id: lint
@@ -62,7 +66,7 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew ktlintCheck 2>&1 | tee /tmp/nextplayer-lint.log || {
-            tail -n 100 /tmp/nextplayer-lint.log | while IFS= read -r line; do echo "::error::$line"; done
+            message=$(grep -Ei "(error|failed|what went wrong|cause|exception|\.kt:[0-9])" /tmp/nextplayer-lint.log | tail -n 35 | tr "\n" "|"); echo "::error::$message"
             exit 1
           }
 
