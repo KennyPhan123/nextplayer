@@ -164,6 +164,7 @@ internal fun MediaPlayerContent(
                     textSize = playerPreferences.subtitleTextSize,
                     textBold = playerPreferences.subtitleTextBold,
                     applyEmbeddedStyles = playerPreferences.applyEmbeddedStyles,
+                    pinToVideo = playerPreferences.subtitlePinToVideo,
                 ),
             )
             if (volumeAndBrightnessGestureState != null) {

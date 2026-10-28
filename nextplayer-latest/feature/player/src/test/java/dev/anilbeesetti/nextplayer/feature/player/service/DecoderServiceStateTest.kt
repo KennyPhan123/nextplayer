@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.feature.player.service
 import android.os.Bundle
 import dev.anilbeesetti.nextplayer.feature.player.model.DecoderRecoveryStatus
 import dev.anilbeesetti.nextplayer.feature.player.model.DecoderTrackType
+import dev.anilbeesetti.nextplayer.feature.player.model.selectableDecoderModes
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.DecoderMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -73,5 +74,45 @@ class DecoderServiceStateTest {
             "invalid",
         )
         assertNull(extras.decoderMode(CustomCommands.AUDIO_DECODER_MODE_KEY))
+        assertEquals(
+            DecoderMode.AUTO,
+            state.requestedVideoMode,
+        )
+        assertEquals(
+            DecoderMode.AUTO,
+            state.requestedAudioMode,
+        )
+    }
+
+    @Test
+    fun selectableModesIncludeAutoAndExtrasCarryRequestedModes() {
+        assertEquals(
+            listOf(
+                DecoderMode.AUTO,
+                DecoderMode.HARDWARE,
+                DecoderMode.SOFTWARE,
+                DecoderMode.FFMPEG,
+            ),
+            selectableDecoderModes,
+        )
+        val extras = Bundle().apply {
+            putString(
+                CustomCommands.REQUESTED_VIDEO_DECODER_MODE_KEY,
+                DecoderMode.HARDWARE.name,
+            )
+            putString(
+                CustomCommands.REQUESTED_AUDIO_DECODER_MODE_KEY,
+                DecoderMode.FFMPEG.name,
+            )
+        }
+        val state = extras.decoderServiceState()
+        assertEquals(
+            DecoderMode.HARDWARE,
+            state.requestedVideoMode,
+        )
+        assertEquals(
+            DecoderMode.FFMPEG,
+            state.requestedAudioMode,
+        )
     }
 }

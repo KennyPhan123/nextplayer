@@ -201,8 +201,8 @@ internal fun MediaPlayerControls(
                         controlsVisibilityState.showControls()
                     }
                 },
-                videoDecoderMode = state.decoderServiceState.videoMode,
-                audioDecoderMode = state.decoderServiceState.audioMode,
+                videoDecoderMode = state.decoderServiceState.requestedVideoMode,
+                audioDecoderMode = state.decoderServiceState.requestedAudioMode,
                 videoContentScale = videoZoomAndContentScaleState.videoContentScale,
                 onDismiss = { overlayView = null },
                 onVideoDecoderModeSelected = {

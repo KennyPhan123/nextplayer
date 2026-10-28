@@ -61,6 +61,8 @@ class SubtitlePreferencesViewModel(
 
             is SubtitlePreferencesUiEvent.ToggleApplyEmbeddedStyles -> toggleApplyEmbeddedStyles()
 
+            is SubtitlePreferencesUiEvent.ToggleSubtitlePinToVideo -> toggleSubtitlePinToVideo()
+
             is SubtitlePreferencesUiEvent.UpdateSubtitleEncoding -> updateSubtitleEncoding(
                 action.value,
             )
@@ -118,6 +120,14 @@ class SubtitlePreferencesViewModel(
         }
     }
 
+    private fun toggleSubtitlePinToVideo() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(subtitlePinToVideo = !it.subtitlePinToVideo)
+            }
+        }
+    }
+
     private fun updateSubtitleEncoding(value: String) {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { it.copy(subtitleTextEncoding = value) }
@@ -155,6 +165,7 @@ sealed interface SubtitlePreferencesUiEvent {
     data class UpdateSubtitleFontSize(val value: Int) : SubtitlePreferencesUiEvent
     data object ToggleSubtitleBackground : SubtitlePreferencesUiEvent
     data object ToggleApplyEmbeddedStyles : SubtitlePreferencesUiEvent
+    data object ToggleSubtitlePinToVideo : SubtitlePreferencesUiEvent
     data class UpdateSubtitleEncoding(val value: String) : SubtitlePreferencesUiEvent
     data object ToggleUseSystemCaptionStyle : SubtitlePreferencesUiEvent
 }

@@ -33,6 +33,8 @@ private const val MEDIA_METADATA_POSITION_KEY = "media_metadata_position"
 private const val MEDIA_METADATA_AUDIO_TRACK_INDEX_KEY = "audio_track_index"
 private const val MEDIA_METADATA_SUBTITLE_TRACK_INDEX_KEY = "subtitle_track_index"
 private const val MEDIA_METADATA_VIDEO_ZOOM_KEY = "media_metadata_video_zoom"
+private const val MEDIA_METADATA_VIDEO_ZOOM_X_KEY = "media_metadata_video_zoom_x"
+private const val MEDIA_METADATA_VIDEO_ZOOM_Y_KEY = "media_metadata_video_zoom_y"
 private const val MEDIA_METADATA_SUBTITLE_DELAY_KEY = "media_metadata_subtitle_delay"
 private const val MEDIA_METADATA_SUBTITLE_SPEED_KEY = "media_metadata_subtitle_speed"
 private const val MEDIA_METADATA_VIDEO_DECODER_MODE_KEY = "media_metadata_video_decoder_mode"
@@ -41,6 +43,8 @@ private const val MEDIA_METADATA_AUDIO_DECODER_MODE_KEY = "media_metadata_audio_
 private fun Bundle.setExtras(
     positionMs: Long?,
     videoScale: Float?,
+    videoScaleX: Float?,
+    videoScaleY: Float?,
     audioTrackIndex: Int?,
     subtitleTrackIndex: Int?,
     subtitleDelayMilliseconds: Long? = null,
@@ -57,6 +61,18 @@ private fun Bundle.setExtras(
     videoScale?.let {
         putFloat(
             MEDIA_METADATA_VIDEO_ZOOM_KEY,
+            it,
+        )
+    }
+    videoScaleX?.let {
+        putFloat(
+            MEDIA_METADATA_VIDEO_ZOOM_X_KEY,
+            it,
+        )
+    }
+    videoScaleY?.let {
+        putFloat(
+            MEDIA_METADATA_VIDEO_ZOOM_Y_KEY,
             it,
         )
     }
@@ -101,6 +117,8 @@ private fun Bundle.setExtras(
 fun MediaMetadata.Builder.setExtras(
     positionMs: Long? = null,
     videoScale: Float? = null,
+    videoScaleX: Float? = null,
+    videoScaleY: Float? = null,
     audioTrackIndex: Int? = null,
     subtitleTrackIndex: Int? = null,
     subtitleDelayMilliseconds: Long? = null,
@@ -111,6 +129,8 @@ fun MediaMetadata.Builder.setExtras(
     Bundle().setExtras(
         positionMs = positionMs,
         videoScale = videoScale,
+        videoScaleX = videoScaleX,
+        videoScaleY = videoScaleY,
         audioTrackIndex = audioTrackIndex,
         subtitleTrackIndex = subtitleTrackIndex,
         subtitleDelayMilliseconds = subtitleDelayMilliseconds,
@@ -144,6 +164,18 @@ val MediaMetadata.videoZoom: Float?
             .takeIf { containsKey(MEDIA_METADATA_VIDEO_ZOOM_KEY) }
     }
 
+val MediaMetadata.videoZoomX: Float?
+    get() = extras?.run {
+        getFloat(MEDIA_METADATA_VIDEO_ZOOM_X_KEY)
+            .takeIf { containsKey(MEDIA_METADATA_VIDEO_ZOOM_X_KEY) }
+    } ?: videoZoom
+
+val MediaMetadata.videoZoomY: Float?
+    get() = extras?.run {
+        getFloat(MEDIA_METADATA_VIDEO_ZOOM_Y_KEY)
+            .takeIf { containsKey(MEDIA_METADATA_VIDEO_ZOOM_Y_KEY) }
+    } ?: videoZoom
+
 val MediaMetadata.subtitleDelayMilliseconds: Long?
     get() = extras?.run {
         getLong(MEDIA_METADATA_SUBTITLE_DELAY_KEY)
@@ -166,6 +198,8 @@ fun MediaItem.copy(
     positionMs: Long? = this.mediaMetadata.positionMs,
     durationMs: Long? = this.mediaMetadata.durationMs,
     videoZoom: Float? = this.mediaMetadata.videoZoom,
+    videoZoomX: Float? = this.mediaMetadata.videoZoomX,
+    videoZoomY: Float? = this.mediaMetadata.videoZoomY,
     audioTrackIndex: Int? = this.mediaMetadata.audioTrackIndex,
     subtitleTrackIndex: Int? = this.mediaMetadata.subtitleTrackIndex,
     subtitleDelayMilliseconds: Long? = this.mediaMetadata.subtitleDelayMilliseconds,
@@ -179,6 +213,8 @@ fun MediaItem.copy(
             (mediaMetadata.extras?.let(block = ::Bundle) ?: Bundle()).setExtras(
                 positionMs = positionMs,
                 videoScale = videoZoom,
+                videoScaleX = videoZoomX,
+                videoScaleY = videoZoomY,
                 audioTrackIndex = audioTrackIndex,
                 subtitleTrackIndex = subtitleTrackIndex,
                 subtitleDelayMilliseconds = subtitleDelayMilliseconds,

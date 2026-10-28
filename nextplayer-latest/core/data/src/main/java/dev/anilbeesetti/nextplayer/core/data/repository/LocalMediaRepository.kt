@@ -160,8 +160,17 @@ class LocalMediaRepository(
         mediumStateDao.update(uri = uri) { it.copy(subtitleTrackIndex = subtitleTrackIndex) }
     }
 
-    override suspend fun updateMediumZoom(uri: String, zoom: Float) {
-        mediumStateDao.update(uri = uri) { it.copy(videoScale = zoom) }
+    override suspend fun updateMediumZoom(
+        uri: String,
+        zoomX: Float,
+        zoomY: Float,
+    ) {
+        mediumStateDao.update(uri = uri) {
+            it.copy(
+                videoScale = zoomX,
+                videoScaleY = zoomY,
+            )
+        }
     }
 
     override suspend fun addExternalAudioToMedium(uri: String, audioUri: Uri) {

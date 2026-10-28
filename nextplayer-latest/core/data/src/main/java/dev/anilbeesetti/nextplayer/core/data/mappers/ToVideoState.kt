@@ -12,6 +12,7 @@ fun MediumStateEntity.toVideoState(): VideoState = VideoState(
     externalSubs = UriListConverter.fromStringToList(urlString = externalSubs),
     externalAudio = UriListConverter.fromStringToList(urlString = externalAudio),
     videoScale = videoScale,
+    videoScaleY = videoScaleY,
     subtitleDelayMilliseconds = subtitleDelayMilliseconds,
     subtitleSpeed = subtitleSpeed,
 )

@@ -140,7 +140,9 @@ class PictureInPictureState(
     fun enterPictureInPictureMode(): Boolean {
         if (pictureInPicture == null || isInPictureInPictureMode) return false
         return runCatching {
-            activity.enterPictureInPictureMode(params = buildPictureInPictureParams())
+            activity.enterPictureInPictureMode(
+                params = buildPictureInPictureParams(isManualEnter = true),
+            )
         }.isSuccess
     }
 
@@ -265,14 +267,15 @@ class PictureInPictureState(
         )
     }
 
-    private fun buildPictureInPictureParams(): PictureInPictureParamsCompat =
-        PictureInPictureParamsCompat.Builder().apply {
-            setActions(actions = actions)
-            setSeamlessResizeEnabled(seamlessResizeEnabled = true)
-            setEnabled(enabled = autoEnter && player.isPlaying)
-            aspectRatio?.let { setAspectRatio(aspectRatio = it) }
-            sourceRectHint?.let { setSourceRectHint(sourceRectHint = it) }
-        }.build()
+    private fun buildPictureInPictureParams(
+        isManualEnter: Boolean = false,
+    ): PictureInPictureParamsCompat = PictureInPictureParamsCompat.Builder().apply {
+        setActions(actions = actions)
+        setSeamlessResizeEnabled(seamlessResizeEnabled = true)
+        setEnabled(enabled = if (isManualEnter) true else (autoEnter && player.isPlaying))
+        aspectRatio?.let { setAspectRatio(aspectRatio = it) }
+        sourceRectHint?.let { setSourceRectHint(sourceRectHint = it) }
+    }.build()
 
     private fun applyPictureInPictureParams() {
         val pictureInPicture = pictureInPicture ?: return

@@ -10,6 +10,7 @@ data class VideoState(
     val externalSubs: List<Uri>,
     val externalAudio: List<Uri> = emptyList(),
     val videoScale: Float,
+    val videoScaleY: Float = 1f,
     val subtitleDelayMilliseconds: Long,
     val subtitleSpeed: Float,
 )

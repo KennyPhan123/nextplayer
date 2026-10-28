@@ -8,17 +8,98 @@ import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateRotation
-import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
 import kotlin.math.abs
+import kotlin.math.hypot
 import kotlinx.coroutines.CancellationException
+
+/**
+ * Direction of a pinch-to-zoom gesture, locked once determined.
+ */
+enum class ZoomDirection {
+    HORIZONTAL,
+    VERTICAL,
+}
+
+fun PointerEvent.calculateZoomXY(lockedDirection: ZoomDirection? = null): Offset {
+    val pointers = changes.filter { it.pressed || it.previousPressed }
+    if (pointers.size < 2) {
+        return Offset(
+            x = 1f,
+            y = 1f,
+        )
+    }
+
+    val p1 = pointers[0]
+    val p2 = pointers[1]
+
+    val currentDistanceX = abs(x = p1.position.x - p2.position.x)
+    val currentDistanceY = abs(x = p1.position.y - p2.position.y)
+
+    val previousDistanceX = abs(x = p1.previousPosition.x - p2.previousPosition.x)
+    val previousDistanceY = abs(x = p1.previousPosition.y - p2.previousPosition.y)
+
+    val previousDistance = hypot(
+        x = p1.previousPosition.x - p2.previousPosition.x,
+        y = p1.previousPosition.y - p2.previousPosition.y,
+    )
+
+    if (previousDistance < 10f) {
+        return Offset(
+            x = 1f,
+            y = 1f,
+        )
+    }
+
+    var deltaX = currentDistanceX - previousDistanceX
+    var deltaY = currentDistanceY - previousDistanceY
+
+    when (lockedDirection) {
+        ZoomDirection.HORIZONTAL -> deltaY = 0f
+
+        ZoomDirection.VERTICAL -> deltaX = 0f
+
+        null -> {
+            if (previousDistanceX >= previousDistanceY) {
+                deltaY = 0f
+            } else {
+                deltaX = 0f
+            }
+        }
+    }
+
+    val zoomX = 1f + (deltaX / previousDistance)
+    val zoomY = 1f + (deltaY / previousDistance)
+
+    return Offset(
+        x = zoomX,
+        y = zoomY,
+    )
+}
+
+/**
+ * Determines the zoom direction from the initial finger placement of two pointers.
+ */
+fun PointerEvent.detectZoomDirection(): ZoomDirection? {
+    val pointers = changes.filter { it.pressed || it.previousPressed }
+    if (pointers.size < 2) return null
+
+    val p1 = pointers[0]
+    val p2 = pointers[1]
+
+    val distanceX = abs(x = p1.position.x - p2.position.x)
+    val distanceY = abs(x = p1.position.y - p2.position.y)
+
+    return if (distanceX >= distanceY) ZoomDirection.HORIZONTAL else ZoomDirection.VERTICAL
+}
 
 /**
  * Detects custom transform gestures including pan, zoom, and rotation gestures.
@@ -42,19 +123,23 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
     onGesture: (
         centroid: Offset,
         pan: Offset,
-        zoom: Float,
+        zoom: Offset,
         rotation: Float,
     ) -> Unit,
     onGestureEnd: (PointerInputChange) -> Unit = {},
 ) {
     awaitEachGesture {
         var rotation = 0f
-        var zoom = 1f
+        var zoom = Offset(
+            x = 1f,
+            y = 1f,
+        )
         var pan = Offset.Zero
         var pastTouchSlop = false
         val touchSlop = viewConfiguration.touchSlop
         var lockedToPanZoom = false
         var gestureStarted = false
+        var lockedZoomDirection: ZoomDirection? = null
 
         // Wait for at least one pointer to press down and set the first contact position
         val down: PointerInputChange = awaitFirstDown(
@@ -93,35 +178,50 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
                 pointerId = pointerInputChange.id
                 pointer = pointerInputChange
 
-                val zoomChange = event.calculateZoom()
+                val zoomChange = event.calculateZoomXY(lockedDirection = lockedZoomDirection)
                 val rotationChange = event.calculateRotation()
                 val panChange = event.calculatePan()
 
                 if (!pastTouchSlop) {
-                    zoom *= zoomChange
+                    zoom = Offset(
+                        x = zoom.x * zoomChange.x,
+                        y = zoom.y * zoomChange.y,
+                    )
                     rotation += rotationChange
                     pan += panChange
 
                     val centroidSize = event.calculateCentroidSize(useCurrent = false)
-                    val zoomMotion = abs(x = 1 - zoom) * centroidSize
+                    val zoomMotionX = abs(x = 1 - zoom.x) * centroidSize
+                    val zoomMotionY = abs(x = 1 - zoom.y) * centroidSize
                     val rotationMotion = abs(
                         x = rotation * kotlin.math.PI.toFloat() * centroidSize / 180f,
                     )
                     val panMotion = pan.getDistance()
 
-                    if (zoomMotion > touchSlop ||
+                    if (zoomMotionX > touchSlop ||
+                        zoomMotionY > touchSlop ||
                         rotationMotion > touchSlop ||
                         panMotion > touchSlop
                     ) {
                         pastTouchSlop = true
                         lockedToPanZoom = panZoomLock && rotationMotion < touchSlop
+                        if (lockedZoomDirection == null) {
+                            lockedZoomDirection = event.detectZoomDirection()
+                        }
                     }
                 }
 
                 if (pastTouchSlop) {
                     val centroid = event.calculateCentroid(useCurrent = false)
                     val effectiveRotation = if (lockedToPanZoom) 0f else rotationChange
-                    if (effectiveRotation != 0f || zoomChange != 1f || panChange != Offset.Zero) {
+                    val neutralZoom = Offset(
+                        x = 1f,
+                        y = 1f,
+                    )
+                    if (effectiveRotation != 0f ||
+                        zoomChange != neutralZoom ||
+                        panChange != Offset.Zero
+                    ) {
                         onGesture(
                             centroid,
                             panChange,

@@ -98,4 +98,22 @@ class MediaItemTest {
         assertNull(metadata.videoDecoderMode)
         assertNull(metadata.audioDecoderMode)
     }
+
+    @Test
+    fun independentVideoZoomSurvivesCopiesAndBundleRoundTrip() {
+        val item = MediaItem.Builder().build()
+            .copy(
+                videoZoomX = 1.35f,
+                videoZoomY = 1.15f,
+            )
+        val restored = MediaItem.fromBundle(item.toBundle())
+        assertEquals(
+            1.35f,
+            restored.mediaMetadata.videoZoomX,
+        )
+        assertEquals(
+            1.15f,
+            restored.mediaMetadata.videoZoomY,
+        )
+    }
 }

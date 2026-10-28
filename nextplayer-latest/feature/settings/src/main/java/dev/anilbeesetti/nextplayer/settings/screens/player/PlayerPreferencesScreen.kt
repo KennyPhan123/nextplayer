@@ -202,6 +202,13 @@ private fun PlayerPreferencesScreenContent(
                     onClick = { onAction(PlayerPreferencesUiEvent.ToggleAutoplay) },
                 )
                 PreferenceSwitch(
+                    title = stringResource(id = R.string.dv7_fallback),
+                    description = stringResource(id = R.string.dv7_fallback_desc),
+                    icon = NextIcons.Decoder,
+                    isChecked = state.preferences.dv7Fallback,
+                    onClick = { onAction(PlayerPreferencesUiEvent.ToggleDv7Fallback) },
+                )
+                PreferenceSwitch(
                     title = stringResource(id = R.string.tunneled_playback),
                     description = stringResource(id = R.string.tunneled_playback_description),
                     icon = NextIcons.Decoder,

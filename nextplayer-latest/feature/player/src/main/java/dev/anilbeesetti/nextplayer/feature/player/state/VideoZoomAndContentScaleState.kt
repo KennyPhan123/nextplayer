@@ -19,7 +19,8 @@ import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.feature.player.extensions.copy
 import dev.anilbeesetti.nextplayer.feature.player.extensions.next
-import dev.anilbeesetti.nextplayer.feature.player.extensions.videoZoom
+import dev.anilbeesetti.nextplayer.feature.player.extensions.videoZoomX
+import dev.anilbeesetti.nextplayer.feature.player.extensions.videoZoomY
 import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -68,8 +69,14 @@ class VideoZoomAndContentScaleState(
     var videoContentScale: VideoContentScale by mutableStateOf(value = initialContentScale)
         private set
 
-    var zoom: Float by mutableFloatStateOf(value = 1f)
+    var zoomX: Float by mutableFloatStateOf(value = 1f)
         private set
+
+    var zoomY: Float by mutableFloatStateOf(value = 1f)
+        private set
+
+    val zoom: Float
+        get() = zoomX
 
     var offset: Offset by mutableStateOf(Offset.Zero)
         private set
@@ -84,7 +91,8 @@ class VideoZoomAndContentScaleState(
 
     fun onVideoContentScaleChanged(newContentScale: VideoContentScale) {
         videoContentScale = newContentScale
-        zoom = 1f
+        zoomX = 1f
+        zoomY = 1f
         offset = Offset.Zero
         onEvent(VideoZoomEvent.ContentScaleChanged(contentScale = videoContentScale))
         updateVideoScaleMetadataAndSendEvent()
@@ -105,29 +113,33 @@ class VideoZoomAndContentScaleState(
         onVideoContentScaleChanged(videoContentScale.next())
     }
 
-    fun onZoomPanGesture(constraints: Constraints, panChange: Offset, zoomChange: Float) {
+    fun onZoomPanGesture(constraints: Constraints, panChange: Offset, zoomChange: Offset) {
         if (player.duration == C.TIME_UNSET) return
         if (!enableZoomGesture) return
 
         isZooming = true
-        zoom = (zoom * zoomChange).coerceIn(
+        zoomX = (zoomX * zoomChange.x).coerceIn(
+            minimumValue = MIN_ZOOM,
+            maximumValue = MAX_ZOOM,
+        )
+        zoomY = (zoomY * zoomChange.y).coerceIn(
             minimumValue = MIN_ZOOM,
             maximumValue = MAX_ZOOM,
         )
 
-        val extraWidth = (zoom - 1) * constraints.maxWidth
-        val extraHeight = (zoom - 1) * constraints.maxHeight
+        val extraWidth = (zoomX - 1) * constraints.maxWidth
+        val extraHeight = (zoomY - 1) * constraints.maxHeight
 
         val maxX = abs(x = extraWidth / 2)
         val maxY = abs(x = extraHeight / 2)
 
         if (enablePanGesture) {
             offset = Offset(
-                x = (offset.x + zoom * panChange.x).coerceIn(
+                x = (offset.x + zoomX * panChange.x).coerceIn(
                     minimumValue = -maxX,
                     maximumValue = maxX,
                 ),
-                y = (offset.y + zoom * panChange.y).coerceIn(
+                y = (offset.y + zoomY * panChange.y).coerceIn(
                     minimumValue = -maxY,
                     maximumValue = maxY,
                 ),
@@ -141,24 +153,33 @@ class VideoZoomAndContentScaleState(
     }
 
     suspend fun observe() {
-        zoom = player.currentMediaItem?.mediaMetadata?.videoZoom ?: 1f
+        zoomX = player.currentMediaItem?.mediaMetadata?.videoZoomX ?: 1f
+        zoomY = player.currentMediaItem?.mediaMetadata?.videoZoomY ?: 1f
         player.listen { events ->
             if (events.contains(Player.EVENT_MEDIA_METADATA_CHANGED)) {
-                zoom = player.currentMediaItem?.mediaMetadata?.videoZoom ?: 1f
+                zoomX = player.currentMediaItem?.mediaMetadata?.videoZoomX ?: 1f
+                zoomY = player.currentMediaItem?.mediaMetadata?.videoZoomY ?: 1f
             }
         }
     }
 
-    private fun updateVideoScaleMetadataAndSendEvent(zoom: Float = this.zoom) {
+    private fun updateVideoScaleMetadataAndSendEvent(
+        zoomX: Float = this.zoomX,
+        zoomY: Float = this.zoomY,
+    ) {
         val currentMediaItem = player.currentMediaItem ?: return
         player.replaceMediaItem(
             player.currentMediaItemIndex,
-            currentMediaItem.copy(videoZoom = zoom),
+            currentMediaItem.copy(
+                videoZoomX = zoomX,
+                videoZoomY = zoomY,
+            ),
         )
         onEvent(
             VideoZoomEvent.ZoomChanged(
                 mediaItem = currentMediaItem,
-                zoom = zoom,
+                zoomX = zoomX,
+                zoomY = zoomY,
             ),
         )
     }
@@ -166,5 +187,9 @@ class VideoZoomAndContentScaleState(
 
 sealed interface VideoZoomEvent {
     data class ContentScaleChanged(val contentScale: VideoContentScale) : VideoZoomEvent
-    data class ZoomChanged(val mediaItem: MediaItem, val zoom: Float) : VideoZoomEvent
+    data class ZoomChanged(
+        val mediaItem: MediaItem,
+        val zoomX: Float,
+        val zoomY: Float,
+    ) : VideoZoomEvent
 }
