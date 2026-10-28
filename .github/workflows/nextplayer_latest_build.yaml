@@ -38,44 +38,63 @@ jobs:
           validate-wrappers: true
           gradle-home-cache-cleanup: true
 
-      - name: Lint Checks
-        run: ./gradlew ktlintCheck
-
-      - name: Build Release-with-Debug-Signing APK
-        run: ./gradlew assembleRelease-with-debug-signing
+      - name: Build Debug APK
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug 2>&1 | tee /tmp/nextplayer-build.log || {
+            tail -n 100 /tmp/nextplayer-build.log | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          }
 
       - name: Run Local Unit Tests
-        run: ./gradlew testDebugUnitTest
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest 2>&1 | tee /tmp/nextplayer-tests.log || {
+            tail -n 100 /tmp/nextplayer-tests.log | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          }
 
-      - name: Upload artifact nextplayer-latest-universal-release.apk
+      - name: Lint Checks
+        id: lint
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew ktlintCheck 2>&1 | tee /tmp/nextplayer-lint.log || {
+            tail -n 100 /tmp/nextplayer-lint.log | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          }
+
+      - name: Upload artifact nextplayer-latest-universal-debug.apk
         uses: actions/upload-artifact@v7
         with:
-          name: nextplayer-latest-universal-release.apk
-          path: nextplayer-latest/app/build/outputs/apk/*/app-universal-*.apk
+          name: nextplayer-latest-universal-debug.apk
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-universal-*.apk
 
-      - name: Upload artifact nextplayer-latest-arm64-v8a-release.apk
+      - name: Upload artifact nextplayer-latest-arm64-v8a-debug.apk
         uses: actions/upload-artifact@v7
         with:
-          name: nextplayer-latest-arm64-v8a-release.apk
-          path: nextplayer-latest/app/build/outputs/apk/*/app-arm64-v8a-*.apk
+          name: nextplayer-latest-arm64-v8a-debug.apk
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-arm64-v8a-*.apk
 
-      - name: Upload artifact nextplayer-latest-armeabi-v7a-release.apk
+      - name: Upload artifact nextplayer-latest-armeabi-v7a-debug.apk
         uses: actions/upload-artifact@v7
         with:
-          name: nextplayer-latest-armeabi-v7a-release.apk
-          path: nextplayer-latest/app/build/outputs/apk/*/app-armeabi-v7a-*.apk
+          name: nextplayer-latest-armeabi-v7a-debug.apk
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-armeabi-v7a-*.apk
 
-      - name: Upload artifact nextplayer-latest-x86_64-release.apk
+      - name: Upload artifact nextplayer-latest-x86_64-debug.apk
         uses: actions/upload-artifact@v7
         with:
-          name: nextplayer-latest-x86_64-release.apk
-          path: nextplayer-latest/app/build/outputs/apk/*/app-x86_64-*.apk
+          name: nextplayer-latest-x86_64-debug.apk
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-x86_64-*.apk
 
-      - name: Upload artifact nextplayer-latest-x86-release.apk
+      - name: Upload artifact nextplayer-latest-x86-debug.apk
         uses: actions/upload-artifact@v7
         with:
-          name: nextplayer-latest-x86-release.apk
-          path: nextplayer-latest/app/build/outputs/apk/*/app-x86-*.apk
+          name: nextplayer-latest-x86-debug.apk
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-x86-*.apk
 
       - name: Upload build reports
         if: always()
@@ -83,3 +102,7 @@ jobs:
         with:
           name: nextplayer-latest-build-reports
           path: nextplayer-latest/app/build/reports
+
+      - name: Check test and lint outcomes
+        if: always() && (steps.tests.outcome == 'failure' || steps.lint.outcome == 'failure')
+        run: exit 1

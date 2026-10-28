@@ -430,6 +430,7 @@ abstract class MediaDatabase : RoomDatabase() {
                     sql = "ALTER TABLE `media_state` ADD COLUMN `video_scale_y` " +
                         "REAL NOT NULL DEFAULT 1",
                 )
+                db.execSQL(sql = "UPDATE `media_state` SET `video_scale_y` = `video_scale`")
             }
         }
     }
