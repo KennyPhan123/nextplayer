@@ -262,8 +262,14 @@ class MediaDatabaseMigrationTest {
         ).use { db ->
             db.query("SELECT video_scale, video_scale_y FROM media_state").use { cursor ->
                 check(cursor.moveToFirst())
-                assertEquals(1.5f, cursor.getFloat(0))
-                assertEquals(1.5f, cursor.getFloat(1))
+                assertEquals(
+                    1.5f,
+                    cursor.getFloat(0),
+                )
+                assertEquals(
+                    1.5f,
+                    cursor.getFloat(1),
+                )
             }
         }
     }
