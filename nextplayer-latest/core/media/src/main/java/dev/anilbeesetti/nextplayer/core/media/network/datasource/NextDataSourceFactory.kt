@@ -16,8 +16,7 @@ import org.koin.core.annotation.Single
  */
 @UnstableApi
 @Single
-class NextDataSourceFactory(private val context: Context, private val sessions: NetworkSessions) :
-    DataSource.Factory {
+class NextDataSourceFactory(private val context: Context, private val sessions: NetworkSessions) : DataSource.Factory {
 
     override fun createDataSource(): DataSource = SchemeDispatchingDataSource(
         default = DefaultDataSource.Factory(context).createDataSource(),
@@ -46,12 +45,11 @@ private class SchemeDispatchingDataSource(
         return target.open(dataSpec)
     }
 
-    override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
-        checkNotNull(value = delegate) { "read() before open()" }.read(
-            buffer,
-            offset,
-            length,
-        )
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int = checkNotNull(value = delegate) { "read() before open()" }.read(
+        buffer,
+        offset,
+        length,
+    )
 
     override fun getUri(): Uri? = delegate?.uri
 
@@ -65,6 +63,5 @@ private class SchemeDispatchingDataSource(
         network.addTransferListener(transferListener)
     }
 
-    override fun getResponseHeaders(): Map<String, List<String>> =
-        delegate?.responseHeaders ?: emptyMap()
+    override fun getResponseHeaders(): Map<String, List<String>> = delegate?.responseHeaders ?: emptyMap()
 }

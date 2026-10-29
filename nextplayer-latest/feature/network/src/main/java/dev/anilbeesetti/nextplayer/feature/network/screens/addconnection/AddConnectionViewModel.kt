@@ -43,8 +43,7 @@ sealed interface SaveState {
     data object Idle : SaveState
     data object Testing : SaveState
     data class ConfirmHostKey(val confirmation: HostKeyConfirmation) : SaveState
-    data class Error(val message: String?, val hostKeyMismatch: HostKeyMismatchDetails? = null) :
-        SaveState
+    data class Error(val message: String?, val hostKeyMismatch: HostKeyMismatchDetails? = null) : SaveState
 }
 
 data class AddConnectionUiState(
@@ -367,11 +366,9 @@ class AddConnectionViewModel(
         if (unusedStage != null) cleanupAfterSuccessfulSave(unusedStage.stagedFileName)
     }
 
-    private fun keyMutationBlocked(): Boolean =
-        cleanupRequested || activeOperation != null || activeKeyMutationJob?.isActive == true
+    private fun keyMutationBlocked(): Boolean = cleanupRequested || activeOperation != null || activeKeyMutationJob?.isActive == true
 
-    private fun keyMutationMayComplete(epoch: Long): Boolean =
-        !cleanupRequested && lifecycleEpoch == epoch && activeOperation == null
+    private fun keyMutationMayComplete(epoch: Long): Boolean = !cleanupRequested && lifecycleEpoch == epoch && activeOperation == null
 
     private fun isCurrent(operation: SaveOperation): Boolean = activeOperation?.id == operation.id
 
@@ -436,13 +433,12 @@ class AddConnectionViewModel(
         keysBeingPersisted -= fileName
     }
 
-    private fun replacePersistingKey(stagedFileName: String, committedFileName: String) =
-        synchronized(lock = keyOwnershipLock) {
-            sessionOwnedKeys -= stagedFileName
-            keysBeingPersisted -= stagedFileName
-            sessionOwnedKeys += committedFileName
-            keysBeingPersisted += committedFileName
-        }
+    private fun replacePersistingKey(stagedFileName: String, committedFileName: String) = synchronized(lock = keyOwnershipLock) {
+        sessionOwnedKeys -= stagedFileName
+        keysBeingPersisted -= stagedFileName
+        sessionOwnedKeys += committedFileName
+        keysBeingPersisted += committedFileName
+    }
 
     private fun NetworkConnection.sanitizeForAuthentication(
         selected: SelectedPrivateKey?,
@@ -466,8 +462,7 @@ class AddConnectionViewModel(
         )
     }
 
-    private inline fun <reified T : Throwable> Throwable.findCause(): T? =
-        generateSequence(seed = this) { it.cause }.filterIsInstance<T>().firstOrNull()
+    private inline fun <reified T : Throwable> Throwable.findCause(): T? = generateSequence(seed = this) { it.cause }.filterIsInstance<T>().firstOrNull()
 
     private fun Throwable.actionableMessage(): String = when {
         findCause<HostKeyMismatch>() != null ->

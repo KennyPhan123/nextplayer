@@ -61,52 +61,50 @@ class HistoryViewModelTest {
     }
 
     @Test
-    fun `history and preferences update independently without a state subscriber`() =
-        runTest(context = dispatcher) {
-            runCurrent()
-            val updatedVideo = Video.sample.copy(nameWithExtension = "Updated.mp4")
-            history.value = listOf(element = updatedVideo)
-            runCurrent()
-            assertEquals(
-                DataState.Success(value = listOf(element = updatedVideo)),
-                viewModel.state.value.history,
-            )
+    fun `history and preferences update independently without a state subscriber`() = runTest(context = dispatcher) {
+        runCurrent()
+        val updatedVideo = Video.sample.copy(nameWithExtension = "Updated.mp4")
+        history.value = listOf(element = updatedVideo)
+        runCurrent()
+        assertEquals(
+            DataState.Success(value = listOf(element = updatedVideo)),
+            viewModel.state.value.history,
+        )
 
-            preferences.updateApplicationPreferences { it.copy(showExtensionField = true) }
-            runCurrent()
-            assertEquals(
-                DataState.Success(value = listOf(element = updatedVideo)),
-                viewModel.state.value.history,
-            )
-            assertEquals(
-                preferences.applicationPreferences.value,
-                viewModel.state.value.preferences,
-            )
-        }
+        preferences.updateApplicationPreferences { it.copy(showExtensionField = true) }
+        runCurrent()
+        assertEquals(
+            DataState.Success(value = listOf(element = updatedVideo)),
+            viewModel.state.value.history,
+        )
+        assertEquals(
+            preferences.applicationPreferences.value,
+            viewModel.state.value.preferences,
+        )
+    }
 
     @Test
-    fun `preferences update before history emits its first value`() =
-        runTest(context = dispatcher) {
-            viewModel.viewModelScope.cancel()
-            val pendingHistory = MutableSharedFlow<List<Video>>()
-            viewModel = HistoryViewModel(
-                mediaRepository = object : MediaRepository by repository {
-                    override fun observePlaybackHistory() = pendingHistory
-                },
-                preferencesRepository = preferences,
-                output = HistoryViewModel.Output(
-                    navigateUp = {},
-                    playVideo = {},
-                ),
-            )
-            preferences.updateApplicationPreferences { it.copy(showExtensionField = true) }
-            runCurrent()
-            assertEquals(
-                DataState.Loading,
-                viewModel.state.value.history,
-            )
-            assertTrue(viewModel.state.value.preferences.showExtensionField)
-        }
+    fun `preferences update before history emits its first value`() = runTest(context = dispatcher) {
+        viewModel.viewModelScope.cancel()
+        val pendingHistory = MutableSharedFlow<List<Video>>()
+        viewModel = HistoryViewModel(
+            mediaRepository = object : MediaRepository by repository {
+                override fun observePlaybackHistory() = pendingHistory
+            },
+            preferencesRepository = preferences,
+            output = HistoryViewModel.Output(
+                navigateUp = {},
+                playVideo = {},
+            ),
+        )
+        preferences.updateApplicationPreferences { it.copy(showExtensionField = true) }
+        runCurrent()
+        assertEquals(
+            DataState.Loading,
+            viewModel.state.value.history,
+        )
+        assertTrue(viewModel.state.value.preferences.showExtensionField)
+    }
 
     @Test
     fun `observers are cancelled with the view model`() = runTest(context = dispatcher) {
@@ -133,79 +131,76 @@ class HistoryViewModelTest {
     }
 
     @Test
-    fun `clear history action updates state without a state subscriber`() =
-        runTest(context = dispatcher) {
-            runCurrent()
-            viewModel.onAction(action = HistoryAction.ClearHistory)
-            runCurrent()
-            assertEquals(
-                DataState.Success(value = emptyList<Video>()),
-                viewModel.state.value.history,
-            )
-        }
+    fun `clear history action updates state without a state subscriber`() = runTest(context = dispatcher) {
+        runCurrent()
+        viewModel.onAction(action = HistoryAction.ClearHistory)
+        runCurrent()
+        assertEquals(
+            DataState.Success(value = emptyList<Video>()),
+            viewModel.state.value.history,
+        )
+    }
 
     @Test
-    fun `turning off history clears it and turning on preserves new entries`() =
-        runTest(context = dispatcher) {
+    fun `turning off history clears it and turning on preserves new entries`() = runTest(context = dispatcher) {
+        runCurrent()
+        viewModel.onAction(HistoryAction.SetHistoryEnabled(enabled = false))
+        runCurrent()
+        assertTrue(preferences.applicationPreferences.value.isHistoryPaused)
+        assertTrue(viewModel.state.value.preferences.isHistoryPaused)
+        assertEquals(
+            DataState.Success(value = emptyList<Video>()),
+            viewModel.state.value.history,
+        )
+
+        history.value = listOf(Video.sample)
+        viewModel.onAction(HistoryAction.SetHistoryEnabled(enabled = true))
+        runCurrent()
+        assertFalse(preferences.applicationPreferences.value.isHistoryPaused)
+        assertFalse(viewModel.state.value.preferences.isHistoryPaused)
+        assertEquals(
+            DataState.Success(value = listOf(Video.sample)),
+            viewModel.state.value.history,
+        )
+    }
+
+    @Test
+    fun `media library settings also clear history only when turning it off`() = runTest(context = dispatcher) {
+        val settingsViewModel = MediaLibraryPreferencesViewModel(
+            preferencesRepository = preferences,
+            mediaRepository = repository,
+            output = MediaLibraryPreferencesViewModel.Output(
+                navigateUp = {},
+                openFolders = {},
+                openThumbnails = {},
+            ),
+        )
+        try {
             runCurrent()
-            viewModel.onAction(HistoryAction.SetHistoryEnabled(enabled = false))
+            settingsViewModel.onAction(
+                MediaLibraryPreferencesUiEvent.SetWatchHistoryEnabled(enabled = false),
+            )
             runCurrent()
             assertTrue(preferences.applicationPreferences.value.isHistoryPaused)
-            assertTrue(viewModel.state.value.preferences.isHistoryPaused)
             assertEquals(
-                DataState.Success(value = emptyList<Video>()),
-                viewModel.state.value.history,
+                emptyList<Video>(),
+                history.value,
             )
 
             history.value = listOf(Video.sample)
-            viewModel.onAction(HistoryAction.SetHistoryEnabled(enabled = true))
+            settingsViewModel.onAction(
+                MediaLibraryPreferencesUiEvent.SetWatchHistoryEnabled(enabled = true),
+            )
             runCurrent()
             assertFalse(preferences.applicationPreferences.value.isHistoryPaused)
-            assertFalse(viewModel.state.value.preferences.isHistoryPaused)
             assertEquals(
-                DataState.Success(value = listOf(Video.sample)),
-                viewModel.state.value.history,
+                listOf(Video.sample),
+                history.value,
             )
+        } finally {
+            settingsViewModel.viewModelScope.cancel()
         }
-
-    @Test
-    fun `media library settings also clear history only when turning it off`() =
-        runTest(context = dispatcher) {
-            val settingsViewModel = MediaLibraryPreferencesViewModel(
-                preferencesRepository = preferences,
-                mediaRepository = repository,
-                output = MediaLibraryPreferencesViewModel.Output(
-                    navigateUp = {},
-                    openFolders = {},
-                    openThumbnails = {},
-                ),
-            )
-            try {
-                runCurrent()
-                settingsViewModel.onAction(
-                    MediaLibraryPreferencesUiEvent.SetWatchHistoryEnabled(enabled = false),
-                )
-                runCurrent()
-                assertTrue(preferences.applicationPreferences.value.isHistoryPaused)
-                assertEquals(
-                    emptyList<Video>(),
-                    history.value,
-                )
-
-                history.value = listOf(Video.sample)
-                settingsViewModel.onAction(
-                    MediaLibraryPreferencesUiEvent.SetWatchHistoryEnabled(enabled = true),
-                )
-                runCurrent()
-                assertFalse(preferences.applicationPreferences.value.isHistoryPaused)
-                assertEquals(
-                    listOf(Video.sample),
-                    history.value,
-                )
-            } finally {
-                settingsViewModel.viewModelScope.cancel()
-            }
-        }
+    }
 
     @Test
     fun `actions use the current route output`() {

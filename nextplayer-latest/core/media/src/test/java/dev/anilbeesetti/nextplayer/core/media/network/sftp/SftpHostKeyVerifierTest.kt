@@ -106,14 +106,13 @@ class SftpHostKeyVerifierTest {
         )
     }
 
-    private fun confirmationFor(keyPair: KeyPair) =
-        assertThrows(HostKeyConfirmationRequired::class.java) {
-            SftpHostKeyVerifier(expectedFingerprint = "").verify(
-                "host",
-                22,
-                keyPair.public,
-            )
-        }
+    private fun confirmationFor(keyPair: KeyPair) = assertThrows(HostKeyConfirmationRequired::class.java) {
+        SftpHostKeyVerifier(expectedFingerprint = "").verify(
+            "host",
+            22,
+            keyPair.public,
+        )
+    }
 
     private fun generateRsaKeyPair(): KeyPair = KeyPairGenerator.getInstance("RSA").run {
         initialize(2048)

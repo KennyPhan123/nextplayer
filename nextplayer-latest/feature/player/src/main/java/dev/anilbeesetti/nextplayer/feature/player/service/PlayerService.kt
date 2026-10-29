@@ -305,10 +305,9 @@ class PlayerService : MediaSessionService() {
                 val pending = pendingAudioSelection
                 pendingAudioSelection = null
                 if (pending != null && pending.first == player.currentMediaItem?.mediaId) {
-                    val audioIndex =
-                        player.currentMediaItem?.mediaMetadata?.externalAudio.orEmpty().indexOf(
-                            pending.second,
-                        )
+                    val audioIndex = player.currentMediaItem?.mediaMetadata?.externalAudio.orEmpty().indexOf(
+                        pending.second,
+                    )
                     val trackIndex = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
                         .indexOfFirst { it.mediaTrackGroup.externalAudioIndex == audioIndex }
                     if (audioIndex >= 0 && trackIndex >= 0) {
@@ -522,15 +521,14 @@ class PlayerService : MediaSessionService() {
             mediaItems: MutableList<MediaItem>,
             startIndex: Int,
             startPositionMs: Long,
-        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> =
-            serviceScope.future(Dispatchers.Default) {
-                val updatedMediaItems = updatedMediaItemsWithMetadata(mediaItems = mediaItems)
-                return@future MediaSession.MediaItemsWithStartPosition(
-                    updatedMediaItems,
-                    startIndex,
-                    startPositionMs,
-                )
-            }
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceScope.future(Dispatchers.Default) {
+            val updatedMediaItems = updatedMediaItemsWithMetadata(mediaItems = mediaItems)
+            return@future MediaSession.MediaItemsWithStartPosition(
+                updatedMediaItems,
+                startIndex,
+                startPositionMs,
+            )
+        }
 
         override fun onAddMediaItems(
             mediaSession: MediaSession,
@@ -642,13 +640,12 @@ class PlayerService : MediaSessionService() {
                 CustomCommands.SET_SKIP_SILENCE_ENABLED -> {
                     val enabled = args.getBoolean(CustomCommands.SKIP_SILENCE_ENABLED_KEY)
                     mediaSession?.player?.playerSpecificSkipSilenceEnabled = enabled
-                    mediaSession?.sessionExtras =
-                        Bundle(mediaSession?.sessionExtras ?: Bundle.EMPTY).apply {
-                            putBoolean(
-                                CustomCommands.SKIP_SILENCE_ENABLED_KEY,
-                                enabled,
-                            )
-                        }
+                    mediaSession?.sessionExtras = Bundle(mediaSession?.sessionExtras ?: Bundle.EMPTY).apply {
+                        putBoolean(
+                            CustomCommands.SKIP_SILENCE_ENABLED_KEY,
+                            enabled,
+                        )
+                    }
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
@@ -806,8 +803,7 @@ class PlayerService : MediaSessionService() {
         }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
-        mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
     override fun onCreate() {
         super.onCreate()
@@ -1279,35 +1275,34 @@ class PlayerService : MediaSessionService() {
             )
         }
     }
-    private suspend fun loadArtworkForMediaItem(mediaItem: MediaItem): Uri? =
-        withContext(Dispatchers.IO) {
-            val defaultArtwork = getDefaultArtworkUri()
-            val uri = mediaItem.mediaMetadata.artworkUri
-                ?.takeUnless { it == defaultArtwork }
-                ?: if (mediaItem.isNetworkMediaItem()) {
-                    return@withContext null
-                } else {
-                    mediaItem.mediaId.toUri()
-                }
-            return@withContext try {
-                val request = ImageRequest.Builder(context = this@PlayerService)
-                    .data(data = uri)
-                    .size(
-                        width = 512,
-                        height = 512,
-                    )
-                    .build()
-                imageLoader.execute(request = request)
-                val diskCache = imageLoader.diskCache ?: return@withContext null
-                return@withContext diskCache.openSnapshot(uri.toString())?.use { snapshot ->
-                    snapshot.data.toFile().toUri()
-                }
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                null
+    private suspend fun loadArtworkForMediaItem(mediaItem: MediaItem): Uri? = withContext(Dispatchers.IO) {
+        val defaultArtwork = getDefaultArtworkUri()
+        val uri = mediaItem.mediaMetadata.artworkUri
+            ?.takeUnless { it == defaultArtwork }
+            ?: if (mediaItem.isNetworkMediaItem()) {
+                return@withContext null
+            } else {
+                mediaItem.mediaId.toUri()
             }
+        return@withContext try {
+            val request = ImageRequest.Builder(context = this@PlayerService)
+                .data(data = uri)
+                .size(
+                    width = 512,
+                    height = 512,
+                )
+                .build()
+            imageLoader.execute(request = request)
+            val diskCache = imageLoader.diskCache ?: return@withContext null
+            return@withContext diskCache.openSnapshot(uri.toString())?.use { snapshot ->
+                snapshot.data.toFile().toUri()
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            null
         }
+    }
 
     private fun MediaItem.isNetworkMediaItem(): Boolean {
         val uri = localConfiguration?.uri ?: return false

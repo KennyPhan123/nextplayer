@@ -141,79 +141,78 @@ class SmbClientTest {
     }
 
     @Test
-    fun `server root reads size and stream from the selected share at the requested offset`() =
-        runBlocking {
-            val server = TestServer()
-            val file = mock(
-                com.hierynomus.smbj.share.File::class.java,
-                RETURNS_DEEP_STUBS,
-            )
-            `when`(file.fileInformation.standardInformation.endOfFile).thenReturn(123L)
-            `when`(
-                server.share.openFile(
-                    anyString(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                ),
-            ).thenReturn(file)
-            `when`(
-                file.read(
-                    any(ByteArray::class.java),
-                    eq(4L),
-                    anyInt(),
-                    anyInt(),
-                ),
-            ).thenAnswer { call ->
-                val buffer = call.getArgument<ByteArray>(0)
-                buffer[0] = 4
-                buffer[1] = 5
-                2
-            }
-            val client = server.client(path = "/")
-            assertTrue(client.connect().isSuccess)
-
-            assertEquals(
-                123L,
-                client.fileSize(path = "Media/folder/clip.mp4"),
-            )
-            client.openStream(
-                path = "Media/folder/clip.mp4",
-                offset = 4L,
-            ).use { stream ->
-                assertEquals(
-                    4,
-                    stream.read(),
-                )
-                assertEquals(
-                    5,
-                    stream.read(),
-                )
-            }
-
-            verify(
-                server.session,
-                times(2),
-            ).connectShare("Media")
-            verify(
-                server.share,
-                times(2),
-            ).openFile(
-                eq("folder\\clip.mp4"),
+    fun `server root reads size and stream from the selected share at the requested offset`() = runBlocking {
+        val server = TestServer()
+        val file = mock(
+            com.hierynomus.smbj.share.File::class.java,
+            RETURNS_DEEP_STUBS,
+        )
+        `when`(file.fileInformation.standardInformation.endOfFile).thenReturn(123L)
+        `when`(
+            server.share.openFile(
+                anyString(),
                 any(),
                 any(),
                 any(),
                 any(),
                 any(),
-            )
-            verify(
-                file,
-                times(2),
-            ).close()
-            client.disconnect()
+            ),
+        ).thenReturn(file)
+        `when`(
+            file.read(
+                any(ByteArray::class.java),
+                eq(4L),
+                anyInt(),
+                anyInt(),
+            ),
+        ).thenAnswer { call ->
+            val buffer = call.getArgument<ByteArray>(0)
+            buffer[0] = 4
+            buffer[1] = 5
+            2
         }
+        val client = server.client(path = "/")
+        assertTrue(client.connect().isSuccess)
+
+        assertEquals(
+            123L,
+            client.fileSize(path = "Media/folder/clip.mp4"),
+        )
+        client.openStream(
+            path = "Media/folder/clip.mp4",
+            offset = 4L,
+        ).use { stream ->
+            assertEquals(
+                4,
+                stream.read(),
+            )
+            assertEquals(
+                5,
+                stream.read(),
+            )
+        }
+
+        verify(
+            server.session,
+            times(2),
+        ).connectShare("Media")
+        verify(
+            server.share,
+            times(2),
+        ).openFile(
+            eq("folder\\clip.mp4"),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+        )
+        verify(
+            file,
+            times(2),
+        ).close()
+        client.disconnect()
+    }
 
     @Test
     fun `named share retains share-relative browsing`() = runBlocking {
@@ -275,16 +274,15 @@ class SmbClientTest {
             `when`(session.connectShare("Media")).thenReturn(share)
         }
 
-        fun client(path: String, listShares: (Session) -> List<NetworkFile> = { emptyList() }) =
-            SmbClient(
-                connection = NetworkConnection(
-                    name = "Test",
-                    protocol = NetworkProtocol.SMB,
-                    host = "server",
-                    path = path,
-                ),
-                createClient = { smbClient },
-                listShares = listShares,
-            )
+        fun client(path: String, listShares: (Session) -> List<NetworkFile> = { emptyList() }) = SmbClient(
+            connection = NetworkConnection(
+                name = "Test",
+                protocol = NetworkProtocol.SMB,
+                host = "server",
+                path = path,
+            ),
+            createClient = { smbClient },
+            listShares = listShares,
+        )
     }
 }

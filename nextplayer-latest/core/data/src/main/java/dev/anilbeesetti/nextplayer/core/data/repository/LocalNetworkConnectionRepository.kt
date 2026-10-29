@@ -10,17 +10,13 @@ import kotlinx.coroutines.flow.map
 import org.koin.core.annotation.Single
 
 @Single
-class LocalNetworkConnectionRepository(private val networkConnectionDao: NetworkConnectionDao) :
-    NetworkConnectionRepository {
+class LocalNetworkConnectionRepository(private val networkConnectionDao: NetworkConnectionDao) : NetworkConnectionRepository {
 
-    override fun getConnections(): Flow<List<NetworkConnection>> =
-        networkConnectionDao.getAll().map { entities -> entities.map { it.toModel() } }
+    override fun getConnections(): Flow<List<NetworkConnection>> = networkConnectionDao.getAll().map { entities -> entities.map { it.toModel() } }
 
-    override suspend fun getConnection(id: Long): NetworkConnection? =
-        networkConnectionDao.getById(id = id)?.toModel()
+    override suspend fun getConnection(id: Long): NetworkConnection? = networkConnectionDao.getById(id = id)?.toModel()
 
-    override suspend fun upsert(connection: NetworkConnection): Long =
-        networkConnectionDao.upsert(connection.toEntity())
+    override suspend fun upsert(connection: NetworkConnection): Long = networkConnectionDao.upsert(connection.toEntity())
 
     override suspend fun delete(id: Long) = networkConnectionDao.deleteById(id = id)
 

@@ -42,10 +42,9 @@ class LocalMediaRepository(
     private val context: Context,
 ) : MediaRepository {
 
-    override fun observeFolders(folderPath: String?): Flow<List<Folder>> =
-        mediaService.observeFolders(folderPath = folderPath).map { mediaFolders ->
-            mediaFolders.map { it.toFolder() }
-        }
+    override fun observeFolders(folderPath: String?): Flow<List<Folder>> = mediaService.observeFolders(folderPath = folderPath).map { mediaFolders ->
+        mediaFolders.map { it.toFolder() }
+    }
 
     override fun observeVideos(folderPath: String?): Flow<List<Video>> = combine(
         mediaService.observeVideos(folderPath = folderPath),
@@ -61,14 +60,12 @@ class LocalMediaRepository(
         }
     }
 
-    override suspend fun fetchFolders(folderPath: String?): List<Folder> =
-        mediaService.fetchFolders(folderPath = folderPath).map { it.toFolder() }
+    override suspend fun fetchFolders(folderPath: String?): List<Folder> = mediaService.fetchFolders(folderPath = folderPath).map { it.toFolder() }
 
-    override suspend fun fetchVideos(folderPath: String?): List<Video> =
-        mediaService.fetchVideos(folderPath = folderPath).mapAsync { mediaVideo ->
-            val mediaState = mediumStateDao.get(mediaVideo.uri.toString())
-            mediaVideo.toVideo(mediaState = mediaState)
-        }
+    override suspend fun fetchVideos(folderPath: String?): List<Video> = mediaService.fetchVideos(folderPath = folderPath).mapAsync { mediaVideo ->
+        val mediaState = mediumStateDao.get(mediaVideo.uri.toString())
+        mediaVideo.toVideo(mediaState = mediaState)
+    }
 
     override fun observePlaybackHistory(): Flow<List<Video>> = combine(
         mediaService.observeVideos(),
@@ -87,8 +84,7 @@ class LocalMediaRepository(
             }
     }
 
-    override fun observeTrashVideos(): Flow<List<Video>> =
-        mediaService.observeTrashVideos().map { videos -> videos.map { it.toVideo() } }
+    override fun observeTrashVideos(): Flow<List<Video>> = mediaService.observeTrashVideos().map { videos -> videos.map { it.toVideo() } }
 
     override suspend fun getVideoByUri(uri: String): Video? = coroutineScope {
         val mediaVideoDeferred = async { mediaService.findVideo(uri.toUri()) }
@@ -100,8 +96,7 @@ class LocalMediaRepository(
         return@coroutineScope mediaVideo.toVideo(mediaState = mediaState)
     }
 
-    override suspend fun getVideoState(uri: String): VideoState? =
-        mediumStateDao.get(uri = uri)?.toVideoState()
+    override suspend fun getVideoState(uri: String): VideoState? = mediumStateDao.get(uri = uri)?.toVideoState()
 
     override suspend fun getMediaInfo(uri: String): MediaInfo? = withContext(Dispatchers.IO) {
         val video = getVideoByUri(uri = uri) ?: return@withContext null

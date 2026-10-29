@@ -72,8 +72,7 @@ class TrashViewModel(
         }
     }
 
-    private fun Set<SelectionItem>.toUris(): List<Uri> =
-        filterIsInstance<SelectionItem.Video>().map { it.uriString.toUri() }
+    private fun Set<SelectionItem>.toUris(): List<Uri> = filterIsInstance<SelectionItem.Video>().map { it.uriString.toUri() }
 }
 
 data class TrashUiState(

@@ -37,8 +37,7 @@ enum class CustomCommands(val customAction: String) {
     )
 
     companion object {
-        fun fromSessionCommand(sessionCommand: SessionCommand): CustomCommands? =
-            entries.find { it.customAction == sessionCommand.customAction }
+        fun fromSessionCommand(sessionCommand: SessionCommand): CustomCommands? = entries.find { it.customAction == sessionCommand.customAction }
 
         fun asSessionCommands(): List<SessionCommand> = entries.map { it.sessionCommand }
 

@@ -19,8 +19,7 @@ interface MediaOperationsService {
 
     companion object {
         @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.R)
-        fun willSystemAsksForDeleteConfirmation(): Boolean =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+        fun willSystemAsksForDeleteConfirmation(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
         @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.R)
         fun supportsTrash(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R

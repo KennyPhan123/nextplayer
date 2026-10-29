@@ -55,20 +55,19 @@ class BrightnessState(private val activity: PlayerActivity) {
         activity.window.attributes = windowAttributes
     }
 
-    fun handleListeners(disposableEffectScope: DisposableEffectScope): DisposableEffectResult =
-        with(receiver = disposableEffectScope) {
-            val windowAttributesChangedListener: Consumer<WindowManager.LayoutParams?> = Consumer {
-                currentBrightness = activity.currentBrightness
-                brightnessPercentage = activity.brightnessPercentage
-            }
-            activity.addOnWindowAttributesChangedListener(
+    fun handleListeners(disposableEffectScope: DisposableEffectScope): DisposableEffectResult = with(receiver = disposableEffectScope) {
+        val windowAttributesChangedListener: Consumer<WindowManager.LayoutParams?> = Consumer {
+            currentBrightness = activity.currentBrightness
+            brightnessPercentage = activity.brightnessPercentage
+        }
+        activity.addOnWindowAttributesChangedListener(
+            listener = windowAttributesChangedListener,
+        )
+
+        onDispose {
+            activity.removeOnWindowAttributesChangedListener(
                 listener = windowAttributesChangedListener,
             )
-
-            onDispose {
-                activity.removeOnWindowAttributesChangedListener(
-                    listener = windowAttributesChangedListener,
-                )
-            }
         }
+    }
 }

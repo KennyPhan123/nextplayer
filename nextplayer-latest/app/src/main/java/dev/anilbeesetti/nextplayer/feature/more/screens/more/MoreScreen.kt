@@ -79,10 +79,9 @@ internal fun MoreScreenContent(state: MoreUiState, onAction: (MoreAction) -> Uni
         TopLevelFabKey.MORE,
         NextIcons.Settings,
     ) { onAction(MoreAction.OpenSettings) }
-    val filePicker =
-        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-            uri?.let { onAction(MoreAction.PlayVideo(it.toString())) }
-        }
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { onAction(MoreAction.PlayVideo(it.toString())) }
+    }
 
     Scaffold(
         topBar = {

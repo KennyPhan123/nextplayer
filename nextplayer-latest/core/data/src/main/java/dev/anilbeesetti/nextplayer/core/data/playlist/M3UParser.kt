@@ -91,90 +91,89 @@ class M3UParser(
         }
     }
 
-    internal fun parseContent(content: String, source: M3USource): Result<M3UPlaylist> =
-        runCatching {
-            val normalizedContent = content.removePrefix(prefix = "\uFEFF")
-            require(
-                normalizedContent.lineSequence().none {
-                    it.trim().startsWith(
-                        prefix = "#EXT-X-",
-                        ignoreCase = true,
-                    )
-                },
-            ) { "HLS manifests cannot be imported as M3U playlists" }
+    internal fun parseContent(content: String, source: M3USource): Result<M3UPlaylist> = runCatching {
+        val normalizedContent = content.removePrefix(prefix = "\uFEFF")
+        require(
+            normalizedContent.lineSequence().none {
+                it.trim().startsWith(
+                    prefix = "#EXT-X-",
+                    ignoreCase = true,
+                )
+            },
+        ) { "HLS manifests cannot be imported as M3U playlists" }
 
-            val entries = mutableListOf<M3UPlaylistItem>()
-            val seenUris = mutableSetOf<String>()
-            var playlistName: String? = null
-            var pending = PendingEntryMetadata()
+        val entries = mutableListOf<M3UPlaylistItem>()
+        val seenUris = mutableSetOf<String>()
+        var playlistName: String? = null
+        var pending = PendingEntryMetadata()
 
-            normalizedContent.lineSequence().forEach { rawLine ->
-                val line = rawLine.trim()
-                when {
-                    line.isEmpty() -> Unit
+        normalizedContent.lineSequence().forEach { rawLine ->
+            val line = rawLine.trim()
+            when {
+                line.isEmpty() -> Unit
 
-                    line.startsWith(
-                        prefix = "#PLAYLIST:",
-                        ignoreCase = true,
-                    ) -> {
-                        if (playlistName == null) {
-                            playlistName =
-                                line.substringAfter(delimiter = ':').trim().ifBlank { null }
-                        }
-                    }
-
-                    line.startsWith(
-                        prefix = "#EXTINF:",
-                        ignoreCase = true,
-                    ) ->
-                        pending =
-                            line.parseExtInf()
-
-                    line.startsWith(
-                        prefix = "#EXTIMG:",
-                        ignoreCase = true,
-                    ) -> {
-                        if (pending.tvgLogo == null) {
-                            pending = pending.copy(
-                                tvgLogo = line.substringAfter(delimiter = ':').trim().ifBlank {
-                                    null
-                                },
-                            )
-                        }
-                    }
-
-                    line.startsWith(char = '#') -> Unit
-
-                    else -> {
-                        val resolvedUri = resolveMediaUri(
-                            rawValue = line,
-                            source = source,
-                        )
-                        if (resolvedUri != null && seenUris.add(element = resolvedUri)) {
-                            entries += M3UPlaylistItem(
-                                uri = resolvedUri,
-                                title = pending.title ?: deriveItemTitle(uri = resolvedUri),
-                                tvgLogo = pending.tvgLogo?.let {
-                                    resolveArtworkUri(
-                                        rawValue = it,
-                                        source = source,
-                                    )
-                                },
-                                duration = pending.duration,
-                                groupTitle = pending.groupTitle,
-                            )
-                        }
-                        pending = PendingEntryMetadata()
+                line.startsWith(
+                    prefix = "#PLAYLIST:",
+                    ignoreCase = true,
+                ) -> {
+                    if (playlistName == null) {
+                        playlistName =
+                            line.substringAfter(delimiter = ':').trim().ifBlank { null }
                     }
                 }
-            }
 
-            require(entries.isNotEmpty()) { "M3U playlist contains no playable entries" }
-            M3UPlaylist(
-                playlistName = playlistName ?: derivePlaylistName(source = source),
-                items = entries,
-            )
+                line.startsWith(
+                    prefix = "#EXTINF:",
+                    ignoreCase = true,
+                ) ->
+                    pending =
+                        line.parseExtInf()
+
+                line.startsWith(
+                    prefix = "#EXTIMG:",
+                    ignoreCase = true,
+                ) -> {
+                    if (pending.tvgLogo == null) {
+                        pending = pending.copy(
+                            tvgLogo = line.substringAfter(delimiter = ':').trim().ifBlank {
+                                null
+                            },
+                        )
+                    }
+                }
+
+                line.startsWith(char = '#') -> Unit
+
+                else -> {
+                    val resolvedUri = resolveMediaUri(
+                        rawValue = line,
+                        source = source,
+                    )
+                    if (resolvedUri != null && seenUris.add(element = resolvedUri)) {
+                        entries += M3UPlaylistItem(
+                            uri = resolvedUri,
+                            title = pending.title ?: deriveItemTitle(uri = resolvedUri),
+                            tvgLogo = pending.tvgLogo?.let {
+                                resolveArtworkUri(
+                                    rawValue = it,
+                                    source = source,
+                                )
+                            },
+                            duration = pending.duration,
+                            groupTitle = pending.groupTitle,
+                        )
+                    }
+                    pending = PendingEntryMetadata()
+                }
+            }
         }
+
+        require(entries.isNotEmpty()) { "M3U playlist contains no playable entries" }
+        M3UPlaylist(
+            playlistName = playlistName ?: derivePlaylistName(source = source),
+            items = entries,
+        )
+    }
 
     private companion object {
         const val NETWORK_TIMEOUT_MILLIS = 15_000
@@ -221,13 +220,12 @@ private fun String.parseExtInf(): PendingEntryMetadata {
     )
 }
 
-private fun String.parseAttributes(): Map<String, String> =
-    extInfAttribute.findAll(input = this).associate { match ->
-        val value = match.groupValues.drop(
-            n = 2,
-        ).firstOrNull(predicate = String::isNotEmpty).orEmpty()
-        match.groupValues[1].lowercase(Locale.ROOT) to value
-    }
+private fun String.parseAttributes(): Map<String, String> = extInfAttribute.findAll(input = this).associate { match ->
+    val value = match.groupValues.drop(
+        n = 2,
+    ).firstOrNull(predicate = String::isNotEmpty).orEmpty()
+    match.groupValues[1].lowercase(Locale.ROOT) to value
+}
 
 private fun String.firstUnquotedComma(): Int {
     var quote: Char? = null
@@ -318,8 +316,7 @@ private fun String.toUriOrNull(): URI? = runCatching { URI(this) }
     }
     .getOrNull()
 
-private fun URI.isValidNetworkUri(schemes: Set<String>): Boolean =
-    scheme?.lowercase(Locale.ROOT) in schemes && !isOpaque && !host.isNullOrBlank()
+private fun URI.isValidNetworkUri(schemes: Set<String>): Boolean = scheme?.lowercase(Locale.ROOT) in schemes && !isOpaque && !host.isNullOrBlank()
 
 private fun Uri.isReadableDocumentUri(): Boolean = when {
     scheme.equals(
@@ -350,13 +347,11 @@ private fun Context.queryDisplayName(uri: Uri): String? = runCatching {
     }
 }.getOrNull()?.takeIf(predicate = String::isNotBlank)
 
-private fun derivePlaylistName(source: M3USource): String =
-    source.fallbackName.cleanPlaylistName().ifBlank { "M3U Playlist" }
+private fun derivePlaylistName(source: M3USource): String = source.fallbackName.cleanPlaylistName().ifBlank { "M3U Playlist" }
 
-private fun URI.sourceName(): String =
-    rawPath?.substringAfterLast(delimiter = '/')?.decodePathSegment().orEmpty()
-        .ifBlank { host.orEmpty() }
-        .ifBlank { "M3U Playlist" }
+private fun URI.sourceName(): String = rawPath?.substringAfterLast(delimiter = '/')?.decodePathSegment().orEmpty()
+    .ifBlank { host.orEmpty() }
+    .ifBlank { "M3U Playlist" }
 
 private fun String.cleanPlaylistName(): String = decodePathSegment()
     .replace(

@@ -61,8 +61,7 @@ import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
  * Default path per protocol: SMB starts with an empty share name and also accepts `/` to browse
  * the server's shares, while FTP and WebDAV are rooted at "/".
  */
-private fun defaultPathFor(protocol: NetworkProtocol): String =
-    if (protocol == NetworkProtocol.SMB) "" else "/"
+private fun defaultPathFor(protocol: NetworkProtocol): String = if (protocol == NetworkProtocol.SMB) "" else "/"
 
 private fun normalizedPathFor(protocol: NetworkProtocol, path: String): String {
     val trimmed = path.trim()
@@ -97,10 +96,9 @@ internal fun AddConnectionScreenContent(
     val existing = state.existingConnection
     val saveState = state.saveState
     val selectedPrivateKey = state.selectedPrivateKey
-    val keyPicker =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            uri?.let { onAction(AddConnectionAction.StagePrivateKey(uri = it)) }
-        }
+    val keyPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { onAction(AddConnectionAction.StagePrivateKey(uri = it)) }
+    }
 
     var protocol by rememberSaveable { mutableStateOf(NetworkProtocol.SMB) }
     var name by rememberSaveable { mutableStateOf(value = "") }

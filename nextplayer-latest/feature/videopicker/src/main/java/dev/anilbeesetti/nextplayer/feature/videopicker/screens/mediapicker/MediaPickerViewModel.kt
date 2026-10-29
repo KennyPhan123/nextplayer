@@ -601,8 +601,7 @@ data class AddToPlaylistState(
 
 sealed interface TransferFlowState {
     data object Idle : TransferFlowState
-    data class Processing(val mode: TransferMode, val progress: TransferProgress) :
-        TransferFlowState
+    data class Processing(val mode: TransferMode, val progress: TransferProgress) : TransferFlowState
 }
 
 sealed interface HideFlowState {

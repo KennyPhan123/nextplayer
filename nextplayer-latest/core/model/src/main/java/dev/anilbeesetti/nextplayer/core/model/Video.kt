@@ -52,8 +52,7 @@ data class Video(
     }
 }
 
-fun List<Video>.recentPlayed(): Video? =
-    filter { it.lastPlayedAt != null }.sortedByDescending { it.lastPlayedAt?.time }.firstOrNull()
+fun List<Video>.recentPlayed(): Video? = filter { it.lastPlayedAt != null }.sortedByDescending { it.lastPlayedAt?.time }.firstOrNull()
 
 fun Video.isNew(nowMillis: Long = System.currentTimeMillis(), thresholdDays: Int = 7): Boolean {
     if (lastPlayedAt != null || thresholdDays <= 0) return false

@@ -116,26 +116,25 @@ class VolumeState(
         )
     }
 
-    fun handleLifecycle(disposableEffectScope: DisposableEffectScope): DisposableEffectResult =
-        with(receiver = disposableEffectScope) {
-            val receiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context, intent: Intent) {
-                    if (intent.action == VOLUME_CHANGED_ACTION) {
-                        if (currentVolume <= systemMaxVolume) {
-                            currentVolume = audioManager.currentStreamVolume
-                            volumePercentage = calculateVolumePercentage()
-                        }
+    fun handleLifecycle(disposableEffectScope: DisposableEffectScope): DisposableEffectResult = with(receiver = disposableEffectScope) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == VOLUME_CHANGED_ACTION) {
+                    if (currentVolume <= systemMaxVolume) {
+                        currentVolume = audioManager.currentStreamVolume
+                        volumePercentage = calculateVolumePercentage()
                     }
                 }
             }
-
-            context.registerReceiver(
-                receiver,
-                IntentFilter(VOLUME_CHANGED_ACTION),
-            )
-
-            onDispose { context.unregisterReceiver(receiver) }
         }
+
+        context.registerReceiver(
+            receiver,
+            IntentFilter(VOLUME_CHANGED_ACTION),
+        )
+
+        onDispose { context.unregisterReceiver(receiver) }
+    }
 
     suspend fun initialize() {
         val player = player as? MediaController ?: return
@@ -209,8 +208,7 @@ class VolumeState(
         }
     }
 
-    private fun calculateVolumePercentage(): Int =
-        (currentVolume.toFloat() / systemMaxVolume * MAX_VOLUME_PERCENTAGE_NORMAL).toInt()
+    private fun calculateVolumePercentage(): Int = (currentVolume.toFloat() / systemMaxVolume * MAX_VOLUME_PERCENTAGE_NORMAL).toInt()
 
     private val AudioManager.currentStreamVolume: Int
         get() = getStreamVolume(AudioManager.STREAM_MUSIC)

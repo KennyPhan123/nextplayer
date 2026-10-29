@@ -115,5 +115,4 @@ private fun Tracks.chapters(durationMs: Long, periodOffsetMs: Long = 0): List<Ch
 }
 
 @OptIn(UnstableApi::class)
-internal fun List<Chapter>.currentChapterIndex(positionMs: Long): Int =
-    indexOfLast { it.startTimeMs <= positionMs }
+internal fun List<Chapter>.currentChapterIndex(positionMs: Long): Int = indexOfLast { it.startTimeMs <= positionMs }

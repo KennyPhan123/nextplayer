@@ -42,9 +42,8 @@ private fun repeatModeIconPainter(repeatMode: @Player.RepeatMode Int): Painter =
 }
 
 @Composable
-private fun repeatModeContentDescription(repeatMode: @Player.RepeatMode Int): String =
-    when (repeatMode) {
-        Player.REPEAT_MODE_OFF -> stringResource(coreUiR.string.loop_mode_off)
-        Player.REPEAT_MODE_ONE -> stringResource(coreUiR.string.loop_mode_one)
-        else -> stringResource(coreUiR.string.loop_mode_all)
-    }
+private fun repeatModeContentDescription(repeatMode: @Player.RepeatMode Int): String = when (repeatMode) {
+    Player.REPEAT_MODE_OFF -> stringResource(coreUiR.string.loop_mode_off)
+    Player.REPEAT_MODE_ONE -> stringResource(coreUiR.string.loop_mode_one)
+    else -> stringResource(coreUiR.string.loop_mode_all)
+}

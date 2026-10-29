@@ -44,11 +44,10 @@ class VideoThumbnailDecoderTest {
         val provider = object : ContentProvider() {
             override fun onCreate(): Boolean = true
 
-            override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor =
-                ParcelFileDescriptor.open(
-                    file,
-                    ParcelFileDescriptor.MODE_READ_ONLY,
-                )
+            override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor = ParcelFileDescriptor.open(
+                file,
+                ParcelFileDescriptor.MODE_READ_ONLY,
+            )
 
             override fun getType(uri: Uri): String = "video/mp4"
 

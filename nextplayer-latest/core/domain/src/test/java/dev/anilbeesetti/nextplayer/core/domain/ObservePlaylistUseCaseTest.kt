@@ -165,30 +165,23 @@ class ObservePlaylistUseCaseTest {
 private class FakePlaylistRepository(initialRecord: PlaylistRecord?) : PlaylistRepository {
     val record = MutableStateFlow(value = initialRecord)
 
-    override fun observePlaylists(): Flow<List<PlaylistSummary>> =
-        MutableStateFlow(value = emptyList())
+    override fun observePlaylists(): Flow<List<PlaylistSummary>> = MutableStateFlow(value = emptyList())
 
     override fun observePlaylist(playlistId: Long): Flow<PlaylistRecord?> = record
     override suspend fun getPlaylist(playlistId: Long): PlaylistRecord? = record.value
-    override suspend fun create(name: String, videoUris: List<String>): Long =
-        error(message = "Not used")
+    override suspend fun create(name: String, videoUris: List<String>): Long = error(message = "Not used")
     override suspend fun createM3U(
         type: PlaylistType,
         source: String,
         playlist: M3UPlaylist,
     ): Long = error(message = "Not used")
-    override suspend fun replaceM3UItems(playlistId: Long, items: List<M3UPlaylistItem>) =
-        error(message = "Not used")
+    override suspend fun replaceM3UItems(playlistId: Long, items: List<M3UPlaylistItem>) = error(message = "Not used")
     override suspend fun rename(playlistId: Long, name: String) = error(message = "Not used")
     override suspend fun delete(playlistId: Long) = error(message = "Not used")
-    override suspend fun addVideos(playlistId: Long, videoUris: List<String>): Int =
-        error(message = "Not used")
-    override suspend fun removeVideo(playlistId: Long, videoUri: String) =
-        error(message = "Not used")
-    override suspend fun replaceOrder(playlistId: Long, orderedUris: List<String>) =
-        error(message = "Not used")
-    override suspend fun markVideoPlayed(playlistId: Long, videoUri: String) =
-        error(message = "Not used")
+    override suspend fun addVideos(playlistId: Long, videoUris: List<String>): Int = error(message = "Not used")
+    override suspend fun removeVideo(playlistId: Long, videoUri: String) = error(message = "Not used")
+    override suspend fun replaceOrder(playlistId: Long, orderedUris: List<String>) = error(message = "Not used")
+    override suspend fun markVideoPlayed(playlistId: Long, videoUri: String) = error(message = "Not used")
     override suspend fun countFilePlaylistsBySource(source: String): Int = 0
 }
 

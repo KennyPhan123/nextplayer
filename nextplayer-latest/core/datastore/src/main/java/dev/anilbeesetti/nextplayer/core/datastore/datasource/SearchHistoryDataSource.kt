@@ -10,8 +10,7 @@ import org.koin.core.annotation.Named
 
 @Factory(binds = [])
 class SearchHistoryDataSource(
-    @Named(DiQualifiers.SEARCH_HISTORY) private val searchHistoryDataStore:
-    DataStore<SearchHistory>,
+    @Named(DiQualifiers.SEARCH_HISTORY) private val searchHistoryDataStore: DataStore<SearchHistory>,
 ) {
 
     companion object {

@@ -392,20 +392,19 @@ class ChaptersStateTest {
         }
     }
 
-    private fun playerState(item: SimpleBasePlayer.MediaItemData): SimpleBasePlayer.State =
-        SimpleBasePlayer.State.Builder()
-            .setAvailableCommands(
-                Player.Commands.Builder()
-                    .addAll(
-                        Player.COMMAND_GET_TIMELINE,
-                        Player.COMMAND_GET_TRACKS,
-                        Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
-                    )
-                    .build(),
-            )
-            .setPlaylist(listOf(element = item))
-            .setPlaybackState(Player.STATE_READY)
-            .build()
+    private fun playerState(item: SimpleBasePlayer.MediaItemData): SimpleBasePlayer.State = SimpleBasePlayer.State.Builder()
+        .setAvailableCommands(
+            Player.Commands.Builder()
+                .addAll(
+                    Player.COMMAND_GET_TIMELINE,
+                    Player.COMMAND_GET_TRACKS,
+                    Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
+                )
+                .build(),
+        )
+        .setPlaylist(listOf(element = item))
+        .setPlaybackState(Player.STATE_READY)
+        .build()
 
     private fun tracks(vararg metadata: Metadata?): Tracks = Tracks(
         metadata.mapIndexed { index, entries ->
