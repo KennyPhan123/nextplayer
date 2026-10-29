@@ -107,3 +107,28 @@ jobs:
       - name: Check test and lint outcomes
         if: always() && (steps.tests.outcome == 'failure' || steps.lint.outcome == 'failure')
         run: exit 1
+
+  format-diagnostics:
+    name: Inspect Kotlin formatting
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextplayer-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Generate formatting patch
+        run: |
+          ./gradlew ktlintFormat --continue || true
+          git diff --binary -- . | gzip -n | base64 -w0 > /tmp/format-patch.b64
+          wc -c /tmp/format-patch.b64
+      - name: Report formatting patch part 1
+        run: fold -w3000 /tmp/format-patch.b64 | awk 'NR <= 8 { print "::notice::FORMAT_PATCH_" NR " " $0 }'
+      - name: Report formatting patch part 2
+        run: fold -w3000 /tmp/format-patch.b64 | awk 'NR > 8 && NR <= 16 { print "::notice::FORMAT_PATCH_" NR " " $0 }'
+      - name: Report formatting patch part 3
+        run: fold -w3000 /tmp/format-patch.b64 | awk 'NR > 16 && NR <= 24 { print "::notice::FORMAT_PATCH_" NR " " $0 }'
