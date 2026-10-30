@@ -52,7 +52,8 @@ android {
         create("release-with-debug-signing") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
-            applicationIdSuffix = ".release"
+            // Keep this build separate from both the old fork and the latest debug build.
+            applicationIdSuffix = ".latest.release"
             matchingFallbacks.add("release")
         }
     }
