@@ -61,10 +61,8 @@ class LocalMediaRepositoryTest {
             ),
         )
         val mediaService = object : MediaService {
-            override fun observeFolders(folderPath: String?) =
-                flowOf(value = emptyList<MediaFolder>())
-            override fun observeVideos(folderPath: String?) =
-                flowOf(value = emptyList<MediaVideo>())
+            override fun observeFolders(folderPath: String?) = flowOf(value = emptyList<MediaFolder>())
+            override fun observeVideos(folderPath: String?) = flowOf(value = emptyList<MediaVideo>())
             override fun observeTrashVideos() = observeVideos(folderPath = null)
             override suspend fun fetchFolders(folderPath: String?) = emptyList<MediaFolder>()
             override suspend fun fetchVideos(folderPath: String?) = emptyList<MediaVideo>()

@@ -50,6 +50,8 @@ class PlayerPreferencesViewModel(
 
             is PlayerPreferencesUiEvent.ToggleAutoplay -> toggleAutoplay()
 
+            is PlayerPreferencesUiEvent.ToggleDv7Fallback -> toggleDv7Fallback()
+
             is PlayerPreferencesUiEvent.ToggleTunneledPlayback -> toggleTunneledPlayback()
 
             is PlayerPreferencesUiEvent.ToggleAutoPip -> toggleAutoPip()
@@ -108,6 +110,14 @@ class PlayerPreferencesViewModel(
     private fun toggleAutoPip() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { it.copy(autoPip = !it.autoPip) }
+        }
+    }
+
+    private fun toggleDv7Fallback() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(dv7Fallback = !it.dv7Fallback)
+            }
         }
     }
 
@@ -202,15 +212,14 @@ sealed interface PlayerPreferencesUiEvent {
     data class ShowDialog(val value: PlayerPreferenceDialog?) : PlayerPreferencesUiEvent
     data class UpdatePlaybackResume(val resume: Resume) : PlayerPreferencesUiEvent
     data object ToggleAutoplay : PlayerPreferencesUiEvent
+    data object ToggleDv7Fallback : PlayerPreferencesUiEvent
     data object ToggleTunneledPlayback : PlayerPreferencesUiEvent
     data object ToggleAutoPip : PlayerPreferencesUiEvent
     data object ToggleAutoBackgroundPlay : PlayerPreferencesUiEvent
     data object ToggleRememberBrightnessLevel : PlayerPreferencesUiEvent
     data object ToggleRememberSelections : PlayerPreferencesUiEvent
-    data class UpdatePreferredPlayerOrientation(val value: ScreenOrientation) :
-        PlayerPreferencesUiEvent
-    data class UpdatePreferredControlButtonsPosition(val value: ControlButtonsPosition) :
-        PlayerPreferencesUiEvent
+    data class UpdatePreferredPlayerOrientation(val value: ScreenOrientation) : PlayerPreferencesUiEvent
+    data class UpdatePreferredControlButtonsPosition(val value: ControlButtonsPosition) : PlayerPreferencesUiEvent
     data class UpdateDefaultPlaybackSpeed(val value: Float) : PlayerPreferencesUiEvent
     data class UpdateControlAutoHideTimeout(val value: Int) : PlayerPreferencesUiEvent
     data object ToggleUseMaterialYouControls : PlayerPreferencesUiEvent

@@ -234,8 +234,7 @@ class PlaylistDetailViewModel(
         }
     }
 
-    private fun currentPlaylist(): Playlist? =
-        (state.value.playlistDataState as? DataState.Success)?.value
+    private fun currentPlaylist(): Playlist? = (state.value.playlistDataState as? DataState.Success)?.value
 
     private fun showToast(message: String) {
         systemService.showToast(

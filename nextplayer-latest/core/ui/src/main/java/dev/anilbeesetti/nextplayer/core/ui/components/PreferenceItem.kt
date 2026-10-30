@@ -180,5 +180,4 @@ fun SelectablePreferencePreview() {
     )
 }
 
-internal fun Color.applyAlpha(enabled: Boolean): Color =
-    if (enabled) this else this.copy(alpha = 0.6f)
+internal fun Color.applyAlpha(enabled: Boolean): Color = if (enabled) this else this.copy(alpha = 0.6f)

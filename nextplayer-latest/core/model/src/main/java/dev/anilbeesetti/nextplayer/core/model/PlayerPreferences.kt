@@ -14,6 +14,7 @@ data class PlayerPreferences(
     val defaultPlaybackSpeed: Float = 1.0f,
     val autoplay: Boolean = true,
     val enableTunneledPlayback: Boolean = false,
+    val dv7Fallback: Boolean = true,
     val autoPip: Boolean = true,
     val autoBackgroundPlay: Boolean = false,
     val loopMode: LoopMode = LoopMode.OFF,
@@ -60,6 +61,7 @@ data class PlayerPreferences(
     val subtitleFont: Font = Font.DEFAULT,
     val subtitleTextBold: Boolean = true,
     val applyEmbeddedStyles: Boolean = true,
+    val subtitlePinToVideo: Boolean = true,
 ) {
 
     companion object {

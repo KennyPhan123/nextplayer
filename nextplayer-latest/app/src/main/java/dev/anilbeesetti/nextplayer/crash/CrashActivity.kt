@@ -151,60 +151,58 @@ class CrashActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun shareLogs(deviceInfo: String, exceptionString: String, logcat: String) =
-        withContext(Dispatchers.IO) {
-            val file = File(
-                cacheDir,
-                "next_player_logs.txt",
-            ).also {
-                if (it.exists()) it.delete()
-                it.createNewFile()
-            }
-            val logs = concatLogs(
-                deviceInfo = deviceInfo,
-                crashLogs = exceptionString,
-                logcat = logcat,
+    private suspend fun shareLogs(deviceInfo: String, exceptionString: String, logcat: String) = withContext(Dispatchers.IO) {
+        val file = File(
+            cacheDir,
+            "next_player_logs.txt",
+        ).also {
+            if (it.exists()) it.delete()
+            it.createNewFile()
+        }
+        val logs = concatLogs(
+            deviceInfo = deviceInfo,
+            crashLogs = exceptionString,
+            logcat = logcat,
+        )
+        file.writeText(text = logs)
+        val uri = FileProvider.getUriForFile(
+            this@CrashActivity,
+            "$packageName.fileprovider",
+            file,
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            clipData = ClipData.newRawUri(
+                null,
+                uri,
             )
-            file.writeText(text = logs)
-            val uri = FileProvider.getUriForFile(
-                this@CrashActivity,
-                "$packageName.fileprovider",
-                file,
-            )
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-                clipData = ClipData.newRawUri(
-                    null,
-                    uri,
-                )
-                putExtra(
-                    Intent.EXTRA_STREAM,
-                    uri,
-                )
-            }
-            startActivity(
-                Intent.createChooser(
-                    intent,
-                    getString(R.string.crash_screen_share),
-                ),
+            putExtra(
+                Intent.EXTRA_STREAM,
+                uri,
             )
         }
+        startActivity(
+            Intent.createChooser(
+                intent,
+                getString(R.string.crash_screen_share),
+            ),
+        )
+    }
 
-    private fun concatLogs(deviceInfo: String, crashLogs: String? = null, logcat: String): String =
-        StringBuilder().apply {
-            appendLine(value = deviceInfo)
-            appendLine()
-            if (!crashLogs.isNullOrBlank()) {
-                appendLine("-".repeat(n = 50))
-                appendLine(value = "Exception:")
-                appendLine(value = crashLogs)
-                appendLine()
-            }
+    private fun concatLogs(deviceInfo: String, crashLogs: String? = null, logcat: String): String = StringBuilder().apply {
+        appendLine(value = deviceInfo)
+        appendLine()
+        if (!crashLogs.isNullOrBlank()) {
             appendLine("-".repeat(n = 50))
-            appendLine(value = "Logcat:")
-            appendLine(value = logcat)
-        }.toString()
+            appendLine(value = "Exception:")
+            appendLine(value = crashLogs)
+            appendLine()
+        }
+        appendLine("-".repeat(n = 50))
+        appendLine(value = "Logcat:")
+        appendLine(value = logcat)
+    }.toString()
 
     private suspend fun collectLogcat(): String = withContext(Dispatchers.IO) {
         val process = Runtime.getRuntime()

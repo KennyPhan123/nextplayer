@@ -140,7 +140,9 @@ class PictureInPictureState(
     fun enterPictureInPictureMode(): Boolean {
         if (pictureInPicture == null || isInPictureInPictureMode) return false
         return runCatching {
-            activity.enterPictureInPictureMode(params = buildPictureInPictureParams())
+            activity.enterPictureInPictureMode(
+                params = buildPictureInPictureParams(isManualEnter = true),
+            )
         }.isSuccess
     }
 
@@ -151,56 +153,55 @@ class PictureInPictureState(
         activity.startActivity(intent)
     }
 
-    fun handleListeners(disposableEffectScope: DisposableEffectScope): DisposableEffectResult =
-        with(receiver = disposableEffectScope) {
-            val pipBroadcastReceiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    if (intent == null || intent.action != PIP_INTENT_ACTION) return
-                    when (
-                        intent.getIntExtra(
-                            PIP_INTENT_ACTION_CODE,
-                            0,
-                        )
-                    ) {
-                        PIP_ACTION_PLAY -> player.play()
-                        PIP_ACTION_PAUSE -> player.pause()
-                        PIP_ACTION_NEXT -> player.seekToNext()
-                        PIP_ACTION_PREVIOUS -> player.seekToPrevious()
-                    }
-                }
-            }
-
-            val eventListener = object : PictureInPictureDelegate.OnPictureInPictureEventListener {
-                override fun onPictureInPictureEvent(
-                    event: PictureInPictureDelegate.Event,
-                    config: Configuration?,
+    fun handleListeners(disposableEffectScope: DisposableEffectScope): DisposableEffectResult = with(receiver = disposableEffectScope) {
+        val pipBroadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent == null || intent.action != PIP_INTENT_ACTION) return
+                when (
+                    intent.getIntExtra(
+                        PIP_INTENT_ACTION_CODE,
+                        0,
+                    )
                 ) {
-                    when (event) {
-                        // Animation callbacks require API 35; ENTERED also covers older devices.
-                        PictureInPictureDelegate.Event.ENTER_ANIMATION_START,
-                        PictureInPictureDelegate.Event.ENTERED,
-                        -> onEnterPictureInPictureMode(receiver = pipBroadcastReceiver)
-
-                        PictureInPictureDelegate.Event.EXITED -> onExitPictureInPictureMode(
-                            receiver = pipBroadcastReceiver,
-                        )
-
-                        else -> Unit
-                    }
+                    PIP_ACTION_PLAY -> player.play()
+                    PIP_ACTION_PAUSE -> player.pause()
+                    PIP_ACTION_NEXT -> player.seekToNext()
+                    PIP_ACTION_PREVIOUS -> player.seekToPrevious()
                 }
-            }
-
-            pictureInPicture?.addOnPictureInPictureEventListener(
-                ContextCompat.getMainExecutor(activity),
-                listener = eventListener,
-            )
-
-            return onDispose {
-                pictureInPicture?.removeOnPictureInPictureEventListener(listener = eventListener)
-                pictureInPicture?.close()
-                runCatching { activity.unregisterReceiver(pipBroadcastReceiver) }
             }
         }
+
+        val eventListener = object : PictureInPictureDelegate.OnPictureInPictureEventListener {
+            override fun onPictureInPictureEvent(
+                event: PictureInPictureDelegate.Event,
+                config: Configuration?,
+            ) {
+                when (event) {
+                    // Animation callbacks require API 35; ENTERED also covers older devices.
+                    PictureInPictureDelegate.Event.ENTER_ANIMATION_START,
+                    PictureInPictureDelegate.Event.ENTERED,
+                    -> onEnterPictureInPictureMode(receiver = pipBroadcastReceiver)
+
+                    PictureInPictureDelegate.Event.EXITED -> onExitPictureInPictureMode(
+                        receiver = pipBroadcastReceiver,
+                    )
+
+                    else -> Unit
+                }
+            }
+        }
+
+        pictureInPicture?.addOnPictureInPictureEventListener(
+            ContextCompat.getMainExecutor(activity),
+            listener = eventListener,
+        )
+
+        return onDispose {
+            pictureInPicture?.removeOnPictureInPictureEventListener(listener = eventListener)
+            pictureInPicture?.close()
+            runCatching { activity.unregisterReceiver(pipBroadcastReceiver) }
+        }
+    }
 
     suspend fun observe() {
         updatePictureInPictureActions()
@@ -265,14 +266,15 @@ class PictureInPictureState(
         )
     }
 
-    private fun buildPictureInPictureParams(): PictureInPictureParamsCompat =
-        PictureInPictureParamsCompat.Builder().apply {
-            setActions(actions = actions)
-            setSeamlessResizeEnabled(seamlessResizeEnabled = true)
-            setEnabled(enabled = autoEnter && player.isPlaying)
-            aspectRatio?.let { setAspectRatio(aspectRatio = it) }
-            sourceRectHint?.let { setSourceRectHint(sourceRectHint = it) }
-        }.build()
+    private fun buildPictureInPictureParams(
+        isManualEnter: Boolean = false,
+    ): PictureInPictureParamsCompat = PictureInPictureParamsCompat.Builder().apply {
+        setActions(actions = actions)
+        setSeamlessResizeEnabled(seamlessResizeEnabled = true)
+        setEnabled(enabled = if (isManualEnter) true else (autoEnter && player.isPlaying))
+        aspectRatio?.let { setAspectRatio(aspectRatio = it) }
+        sourceRectHint?.let { setSourceRectHint(sourceRectHint = it) }
+    }.build()
 
     private fun applyPictureInPictureParams() {
         val pictureInPicture = pictureInPicture ?: return

@@ -5,6 +5,7 @@ import dev.anilbeesetti.nextplayer.core.ui.R
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.DecoderMode
 
 val selectableDecoderModes = listOf(
+    DecoderMode.AUTO,
     DecoderMode.HARDWARE,
     DecoderMode.SOFTWARE,
     DecoderMode.FFMPEG,
@@ -22,7 +23,7 @@ val DecoderMode.labelRes: Int
 @get:StringRes
 val DecoderMode.descriptionRes: Int
     get() = when (this) {
-        DecoderMode.AUTO -> R.string.decoder_mode_auto
+        DecoderMode.AUTO -> R.string.decoder_auto_description
         DecoderMode.HARDWARE -> R.string.decoder_hardware_description
         DecoderMode.SOFTWARE -> R.string.decoder_system_software_description
         DecoderMode.FFMPEG -> R.string.decoder_app_software_description

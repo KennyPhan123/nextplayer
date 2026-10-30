@@ -11,11 +11,10 @@ class SuspendActivityResultLauncher<I, O>(
     contract: ActivityResultContract<I, O>,
 ) {
     private var activityResultCallback: ((result: O) -> Unit)? = null
-    private var activityResultLauncher: ActivityResultLauncher<I> =
-        activity.registerForActivityResult(
-            contract = contract,
-            callback = { result -> activityResultCallback?.invoke(result) },
-        )
+    private var activityResultLauncher: ActivityResultLauncher<I> = activity.registerForActivityResult(
+        contract = contract,
+        callback = { result -> activityResultCallback?.invoke(result) },
+    )
 
     val isAwaitingResult: Boolean
         get() = activityResultCallback != null

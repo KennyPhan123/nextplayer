@@ -46,7 +46,7 @@ android {
 
         getByName("debug") {
             isDebuggable = true
-            applicationIdSuffix = ".debug"
+            applicationIdSuffix = ".latest.debug"
         }
 
         create("release-with-debug-signing") {

@@ -28,10 +28,9 @@ class DefaultSshKeyStore(context: Context) : SshKeyStore {
         reconciliationRequired = true,
     )
 
-    override suspend fun initialize(referencedFileNames: Set<String>?): Unit =
-        withContext(Dispatchers.IO) {
-            keyFiles.initialize(referencedFileNames = referencedFileNames)
-        }
+    override suspend fun initialize(referencedFileNames: Set<String>?): Unit = withContext(Dispatchers.IO) {
+        keyFiles.initialize(referencedFileNames = referencedFileNames)
+    }
 
     override suspend fun stage(uri: Uri): StagedSshKey = stageSshKey(
         keyFiles = keyFiles,

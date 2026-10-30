@@ -228,9 +228,8 @@ class NetworkBrowseViewModel(
     }
 
     /** Root folder shows the connection name; nested folders show the last path segment. */
-    private fun title(conn: NetworkConnection): String =
-        path?.trimEnd('/')?.substringAfterLast(delimiter = '/')?.takeIf { it.isNotEmpty() }
-            ?: conn.name
+    private fun title(conn: NetworkConnection): String = path?.trimEnd('/')?.substringAfterLast(delimiter = '/')?.takeIf { it.isNotEmpty() }
+        ?: conn.name
 
     override fun onAction(action: NetworkBrowseAction) {
         when (action) {
@@ -298,8 +297,7 @@ sealed interface NetworkBrowseAction {
     data object NavigateUp : NetworkBrowseAction
     data class OpenFolder(val file: NetworkFile) : NetworkBrowseAction
 
-    data class UpdateQuickSettings(val layoutMode: MediaLayoutMode, val sort: Sort) :
-        NetworkBrowseAction
+    data class UpdateQuickSettings(val layoutMode: MediaLayoutMode, val sort: Sort) : NetworkBrowseAction
     data object Retry : NetworkBrowseAction
     data class PlayVideo(val file: NetworkFile) : NetworkBrowseAction
     data object PlayAll : NetworkBrowseAction

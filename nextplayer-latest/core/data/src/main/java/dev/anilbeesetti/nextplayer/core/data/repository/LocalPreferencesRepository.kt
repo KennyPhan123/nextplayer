@@ -19,19 +19,17 @@ class LocalPreferencesRepository(
     @Named(DiQualifiers.APPLICATION_SCOPE) private val applicationScope: CoroutineScope,
 ) : PreferencesRepository {
 
-    override val applicationPreferences: StateFlow<ApplicationPreferences> =
-        appPreferencesDataSource.preferences.stateIn(
-            scope = applicationScope,
-            started = SharingStarted.Eagerly,
-            initialValue = ApplicationPreferences(),
-        )
+    override val applicationPreferences: StateFlow<ApplicationPreferences> = appPreferencesDataSource.preferences.stateIn(
+        scope = applicationScope,
+        started = SharingStarted.Eagerly,
+        initialValue = ApplicationPreferences(),
+    )
 
-    override val playerPreferences: StateFlow<PlayerPreferences> =
-        playerPreferencesDataSource.preferences.stateIn(
-            scope = applicationScope,
-            started = SharingStarted.Eagerly,
-            initialValue = PlayerPreferences(),
-        )
+    override val playerPreferences: StateFlow<PlayerPreferences> = playerPreferencesDataSource.preferences.stateIn(
+        scope = applicationScope,
+        started = SharingStarted.Eagerly,
+        initialValue = PlayerPreferences(),
+    )
 
     override suspend fun updateApplicationPreferences(
         transform: suspend (ApplicationPreferences) -> ApplicationPreferences,

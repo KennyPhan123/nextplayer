@@ -73,4 +73,23 @@ class PlayerPreferencesViewModelTest {
 
         assertTrue(viewModel.state.value.preferences.enableTunneledPlayback)
     }
+
+    @Test
+    fun toggleDv7FallbackUpdatesRepositoryAndScreenState() = runTest(context = dispatcher) {
+        val original = repository.playerPreferences.value
+        val viewModel = PlayerPreferencesViewModel(
+            preferencesRepository = repository,
+            PlayerPreferencesViewModel.Output(navigateUp = {}),
+        )
+
+        assertTrue(original.dv7Fallback)
+        viewModel.onAction(action = PlayerPreferencesUiEvent.ToggleDv7Fallback)
+        advanceUntilIdle()
+
+        assertFalse(repository.playerPreferences.value.dv7Fallback)
+        assertEquals(
+            original.copy(dv7Fallback = false),
+            viewModel.state.value.preferences,
+        )
+    }
 }

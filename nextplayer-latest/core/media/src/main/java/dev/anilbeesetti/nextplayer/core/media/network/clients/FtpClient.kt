@@ -90,27 +90,26 @@ class FtpClient(private val connection: NetworkConnection) : NetworkClient {
 
     override fun isConnected(): Boolean = ftpClient?.isConnected == true
 
-    override suspend fun listFiles(path: String): Result<List<NetworkFile>> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                val client = ftpClient ?: error(message = "Not connected")
-                val dir = path.ifBlank { rootPath }
-                val files = client.listFiles(dir)
-                check(FTPReply.isPositiveCompletion(client.replyCode)) {
-                    client.replyString.trim().ifEmpty { "Failed to list FTP directory: $dir" }
-                }
-                files.mapNotNull { file ->
-                    if (file.name == "." || file.name == "..") return@mapNotNull null
-                    NetworkFile(
-                        name = file.name,
-                        path = "${dir.trimEnd('/')}/${file.name}",
-                        isDirectory = file.isDirectory,
-                        size = file.size,
-                        modified = file.timestamp?.timeInMillis,
-                    )
-                }
+    override suspend fun listFiles(path: String): Result<List<NetworkFile>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val client = ftpClient ?: error(message = "Not connected")
+            val dir = path.ifBlank { rootPath }
+            val files = client.listFiles(dir)
+            check(FTPReply.isPositiveCompletion(client.replyCode)) {
+                client.replyString.trim().ifEmpty { "Failed to list FTP directory: $dir" }
+            }
+            files.mapNotNull { file ->
+                if (file.name == "." || file.name == "..") return@mapNotNull null
+                NetworkFile(
+                    name = file.name,
+                    path = "${dir.trimEnd('/')}/${file.name}",
+                    isDirectory = file.isDirectory,
+                    size = file.size,
+                    modified = file.timestamp?.timeInMillis,
+                )
             }
         }
+    }
 
     override suspend fun fileSize(path: String): Long = withContext(Dispatchers.IO) {
         runCatching {
@@ -136,35 +135,34 @@ class FtpClient(private val connection: NetworkConnection) : NetworkClient {
         }.getOrDefault(defaultValue = -1L)
     }
 
-    override suspend fun openStream(path: String, offset: Long): InputStream =
-        withContext(Dispatchers.IO) {
-            // A fresh control connection per stream avoids conflicting with browsing / other streams.
-            val streamClient = newClient()
-            check(streamClient.loginAndPrepare()) { "FTP login failed" }
-            if (offset > 0) streamClient.restartOffset = offset
-            val raw = streamClient.retrieveFileStream(path)
-                ?: run {
-                    runCatching { streamClient.disconnect() }
-                    error(message = "Failed to open FTP stream for $path")
-                }
-            object : InputStream() {
-                override fun read(): Int = raw.read()
-                override fun read(b: ByteArray, off: Int, len: Int): Int = raw.read(
-                    b,
-                    off,
-                    len,
-                )
-                override fun available(): Int = raw.available()
-                override fun close() {
-                    runCatching { raw.close() }
-                    runCatching {
-                        if (streamClient.isConnected) {
-                            streamClient.completePendingCommand()
-                            streamClient.logout()
-                            streamClient.disconnect()
-                        }
+    override suspend fun openStream(path: String, offset: Long): InputStream = withContext(Dispatchers.IO) {
+        // A fresh control connection per stream avoids conflicting with browsing / other streams.
+        val streamClient = newClient()
+        check(streamClient.loginAndPrepare()) { "FTP login failed" }
+        if (offset > 0) streamClient.restartOffset = offset
+        val raw = streamClient.retrieveFileStream(path)
+            ?: run {
+                runCatching { streamClient.disconnect() }
+                error(message = "Failed to open FTP stream for $path")
+            }
+        object : InputStream() {
+            override fun read(): Int = raw.read()
+            override fun read(b: ByteArray, off: Int, len: Int): Int = raw.read(
+                b,
+                off,
+                len,
+            )
+            override fun available(): Int = raw.available()
+            override fun close() {
+                runCatching { raw.close() }
+                runCatching {
+                    if (streamClient.isConnected) {
+                        streamClient.completePendingCommand()
+                        streamClient.logout()
+                        streamClient.disconnect()
                     }
                 }
             }
         }
+    }
 }

@@ -120,7 +120,14 @@ fun PlayerControls(
             )
 
             videoZoomAndContentScaleState.isZooming -> InfoView(
-                info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%",
+                info = if (videoZoomAndContentScaleState.zoomX ==
+                    videoZoomAndContentScaleState.zoomY
+                ) {
+                    "${(videoZoomAndContentScaleState.zoomX * 100).toInt()}%"
+                } else {
+                    "${(videoZoomAndContentScaleState.zoomX * 100).toInt()}% x " +
+                        "${(videoZoomAndContentScaleState.zoomY * 100).toInt()}%"
+                },
             )
 
             videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(

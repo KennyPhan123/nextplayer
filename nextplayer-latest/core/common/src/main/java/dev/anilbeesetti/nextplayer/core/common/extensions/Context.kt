@@ -274,32 +274,31 @@ fun Context.getMediaContentUri(uri: Uri): Uri? {
     return null
 }
 
-suspend fun Context.scanPaths(paths: List<String>): Boolean =
-    suspendCancellableCoroutine { continuation ->
-        if (paths.isEmpty()) {
-            continuation.resumeWith(Result.success(value = true))
-            return@suspendCancellableCoroutine
-        }
-        // scanFile invokes the callback once per path, so only resume after the last one.
-        val remaining = AtomicInteger(paths.size)
-        try {
-            MediaScannerConnection.scanFile(
-                this@scanPaths,
-                paths.toTypedArray(),
-                arrayOf("video/*"),
-            ) { path, uri ->
-                Log.d(
-                    "ScanPath",
-                    "scanPaths: path=$path, uri=$uri",
-                )
-                if (remaining.decrementAndGet() == 0) {
-                    continuation.resumeWith(Result.success(value = true))
-                }
-            }
-        } catch (e: Exception) {
-            continuation.resumeWith(Result.failure(exception = e))
-        }
+suspend fun Context.scanPaths(paths: List<String>): Boolean = suspendCancellableCoroutine { continuation ->
+    if (paths.isEmpty()) {
+        continuation.resumeWith(Result.success(value = true))
+        return@suspendCancellableCoroutine
     }
+    // scanFile invokes the callback once per path, so only resume after the last one.
+    val remaining = AtomicInteger(paths.size)
+    try {
+        MediaScannerConnection.scanFile(
+            this@scanPaths,
+            paths.toTypedArray(),
+            arrayOf("video/*"),
+        ) { path, uri ->
+            Log.d(
+                "ScanPath",
+                "scanPaths: path=$path, uri=$uri",
+            )
+            if (remaining.decrementAndGet() == 0) {
+                continuation.resumeWith(Result.success(value = true))
+            }
+        }
+    } catch (e: Exception) {
+        continuation.resumeWith(Result.failure(exception = e))
+    }
+}
 
 suspend fun Context.scanPath(file: File): Boolean = if (file.isDirectory) {
     file.listFiles()?.all { scanPath(file = it) } ?: true
@@ -321,55 +320,53 @@ suspend fun Context.scanStorage(
     }
 }
 
-suspend fun Context.convertToUTF8(uri: Uri, charset: Charset? = null): Uri =
-    withContext(Dispatchers.IO) {
-        try {
-            when {
-                uri.scheme?.let {
-                    it in listOf(
-                        "http",
-                        "https",
-                        "ftp",
+suspend fun Context.convertToUTF8(uri: Uri, charset: Charset? = null): Uri = withContext(Dispatchers.IO) {
+    try {
+        when {
+            uri.scheme?.let {
+                it in listOf(
+                    "http",
+                    "https",
+                    "ftp",
+                )
+            } == true -> {
+                val url = URL(uri.toString())
+                val detectedCharset = charset ?: detectCharset(url = url)
+                if (detectedCharset == StandardCharsets.UTF_8) {
+                    uri
+                } else {
+                    convertNetworkUriToUTF8(
+                        url = url,
+                        sourceCharset = detectedCharset,
                     )
-                } == true -> {
-                    val url = URL(uri.toString())
-                    val detectedCharset = charset ?: detectCharset(url = url)
-                    if (detectedCharset == StandardCharsets.UTF_8) {
-                        uri
-                    } else {
-                        convertNetworkUriToUTF8(
-                            url = url,
-                            sourceCharset = detectedCharset,
-                        )
-                    }
-                }
-
-                else -> {
-                    val detectedCharset =
-                        charset ?: detectCharset(
-                            uri = uri,
-                            context = this@convertToUTF8,
-                        )
-                    if (detectedCharset == StandardCharsets.UTF_8) {
-                        uri
-                    } else {
-                        convertLocalUriToUTF8(
-                            uri = uri,
-                            sourceCharset = detectedCharset,
-                        )
-                    }
                 }
             }
-        } catch (exception: Exception) {
-            exception.printStackTrace()
-            uri
-        }
-    }
 
-private fun detectCharset(uri: Uri, context: Context): Charset =
-    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-        detectCharsetFromStream(inputStream = inputStream)
-    } ?: StandardCharsets.UTF_8
+            else -> {
+                val detectedCharset =
+                    charset ?: detectCharset(
+                        uri = uri,
+                        context = this@convertToUTF8,
+                    )
+                if (detectedCharset == StandardCharsets.UTF_8) {
+                    uri
+                } else {
+                    convertLocalUriToUTF8(
+                        uri = uri,
+                        sourceCharset = detectedCharset,
+                    )
+                }
+            }
+        }
+    } catch (exception: Exception) {
+        exception.printStackTrace()
+        uri
+    }
+}
+
+private fun detectCharset(uri: Uri, context: Context): Charset = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+    detectCharsetFromStream(inputStream = inputStream)
+} ?: StandardCharsets.UTF_8
 
 private fun detectCharset(url: URL): Charset = url.openStream().use { inputStream ->
     detectCharsetFromStream(inputStream = inputStream)
@@ -512,20 +509,19 @@ val Context.thumbnailCacheDir: File
         return dir
     }
 
-suspend fun ContentResolver.updateMedia(uri: Uri, contentValues: ContentValues): Boolean =
-    withContext(Dispatchers.IO) {
-        return@withContext try {
-            update(
-                uri,
-                contentValues,
-                null,
-                null,
-            ) > 0
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
+suspend fun ContentResolver.updateMedia(uri: Uri, contentValues: ContentValues): Boolean = withContext(Dispatchers.IO) {
+    return@withContext try {
+        update(
+            uri,
+            contentValues,
+            null,
+            null,
+        ) > 0
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
     }
+}
 
 suspend fun ContentResolver.deleteMedia(uri: Uri): Boolean = withContext(Dispatchers.IO) {
     return@withContext try {

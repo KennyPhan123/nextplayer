@@ -32,8 +32,7 @@ class BackgroundPlaybackCompletionTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @Test
-    fun wakingAfterBackgroundCompletionDoesNotReplayClearedQueue() =
-        checkCompletion(autoplay = false)
+    fun wakingAfterBackgroundCompletionDoesNotReplayClearedQueue() = checkCompletion(autoplay = false)
 
     @Test
     fun wakingAfterBackgroundCompletionClosesEndedQueue() = checkCompletion(autoplay = true)

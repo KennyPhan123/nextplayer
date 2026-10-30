@@ -1,0 +1,136 @@
+name: NextPlayer Latest Build
+
+on:
+  push:
+    paths:
+      - 'nextplayer-latest/**'
+      - '.github/workflows/nextplayer_latest_build.yaml'
+  pull_request:
+    paths:
+      - 'nextplayer-latest/**'
+      - '.github/workflows/nextplayer_latest_build.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: build-latest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build APKs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextplayer-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set Up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          validate-wrappers: true
+          gradle-home-cache-cleanup: true
+
+      - name: Build Debug APK
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug 2>&1 | tee /tmp/nextplayer-build.log || {
+            message=$(grep -Ei "(^e:|error|failed|what went wrong|cause|exception)" /tmp/nextplayer-build.log | tail -n 20 | tr "\n" "|"); echo "::error::$message"
+            exit 1
+          }
+
+      - name: Upload artifact nextplayer-latest-universal-debug.apk
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextplayer-latest-universal-debug.apk
+          if-no-files-found: error
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-universal-*.apk
+
+      - name: Upload artifact nextplayer-latest-arm64-v8a-debug.apk
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextplayer-latest-arm64-v8a-debug.apk
+          if-no-files-found: error
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-arm64-v8a-*.apk
+
+      - name: Upload artifact nextplayer-latest-armeabi-v7a-debug.apk
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextplayer-latest-armeabi-v7a-debug.apk
+          if-no-files-found: error
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-armeabi-v7a-*.apk
+
+      - name: Upload artifact nextplayer-latest-x86_64-debug.apk
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextplayer-latest-x86_64-debug.apk
+          if-no-files-found: error
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-x86_64-*.apk
+
+      - name: Upload artifact nextplayer-latest-x86-debug.apk
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextplayer-latest-x86-debug.apk
+          if-no-files-found: error
+          path: nextplayer-latest/app/build/outputs/apk/debug/app-x86-*.apk
+
+
+  checks:
+    name: Unit tests and formatting
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextplayer-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set Up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          validate-wrappers: true
+          gradle-home-cache-cleanup: true
+
+      - name: Run Local Unit Tests
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest 2>&1 | tee /tmp/nextplayer-tests.log || {
+            message=$(grep -Ei "(^e:|error|failed|what went wrong|cause|exception)" /tmp/nextplayer-tests.log | tail -n 20 | tr "\n" "|"); echo "::error::$message"
+            exit 1
+          }
+          python3 -c 'import glob, xml.etree.ElementTree as ET, sys; reports = [ET.parse(p).getroot() for p in glob.glob("**/build/test-results/testDebugUnitTest/TEST-*.xml", recursive=True)]; failures = sum(int(r.get("failures", 0)) + int(r.get("errors", 0)) for r in reports); print(f"::error::{failures} unit tests failed" if failures else f"{len(reports)} test reports passed"); sys.exit(not reports or bool(failures))'
+
+      - name: Lint Checks
+        id: lint
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew ktlintCheck 2>&1 | tee /tmp/nextplayer-lint.log || {
+            message=$(grep -Ei "(error|failed|what went wrong|cause|exception|\.kt:[0-9])" /tmp/nextplayer-lint.log | tail -n 35 | tr "\n" "|"); echo "::error::$message"
+            exit 1
+          }
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextplayer-latest-test-reports
+          path: nextplayer-latest/**/build/reports/tests/
+          if-no-files-found: ignore
+
+      - name: Check test and lint outcomes
+        if: always() && (steps.tests.outcome == 'failure' || steps.lint.outcome == 'failure')
+        run: exit 1

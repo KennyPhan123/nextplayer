@@ -219,12 +219,11 @@ class VideoThumbnailDecoder(
         }
     }
 
-    private fun readFromDiskCache(): DiskCache.Snapshot? =
-        if (options.diskCachePolicy.readEnabled) {
-            diskCache.value?.openSnapshot(key = diskCacheKey)
-        } else {
-            null
-        }
+    private fun readFromDiskCache(): DiskCache.Snapshot? = if (options.diskCachePolicy.readEnabled) {
+        diskCache.value?.openSnapshot(key = diskCacheKey)
+    } else {
+        null
+    }
 
     private fun writeToDiskCache(inBitmap: Bitmap) {
         if (!options.diskCachePolicy.writeEnabled) return
@@ -331,8 +330,7 @@ class VideoThumbnailDecoder(
             )
         }
 
-        private fun isApplicable(mimeType: String?): Boolean =
-            mimeType != null && mimeType.startsWith(prefix = "video/")
+        private fun isApplicable(mimeType: String?): Boolean = mimeType != null && mimeType.startsWith(prefix = "video/")
     }
 }
 

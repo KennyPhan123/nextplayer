@@ -36,8 +36,7 @@ import org.koin.core.annotation.Single
 class AppModule {
 
     @KoinViewModel
-    fun provideMainViewModel(preferencesRepository: PreferencesRepository) =
-        MainViewModel(preferencesRepository = preferencesRepository)
+    fun provideMainViewModel(preferencesRepository: PreferencesRepository) = MainViewModel(preferencesRepository = preferencesRepository)
 
     @Single
     fun provideImageLoader(

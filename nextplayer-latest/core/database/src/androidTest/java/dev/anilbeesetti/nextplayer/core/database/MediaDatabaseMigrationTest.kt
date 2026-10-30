@@ -241,6 +241,39 @@ class MediaDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate13To14_preservesUniformZoomOnBothAxes() {
+        helper.createDatabase(
+            name = "zoom-migration",
+            version = 13,
+        ).apply {
+            execSQL(
+                "INSERT INTO media_state " +
+                    "(uri, playback_position, external_subs, video_scale, subtitle_delay, subtitle_speed) " +
+                    "VALUES ('content://video/one', 123, '', 1.5, 0, 1)",
+            )
+            close()
+        }
+        helper.runMigrationsAndValidate(
+            name = "zoom-migration",
+            version = 14,
+            validateDroppedTables = true,
+            MediaDatabase.MIGRATION_13_14,
+        ).use { db ->
+            db.query("SELECT video_scale, video_scale_y FROM media_state").use { cursor ->
+                check(cursor.moveToFirst())
+                assertEquals(
+                    1.5f,
+                    cursor.getFloat(0),
+                )
+                assertEquals(
+                    1.5f,
+                    cursor.getFloat(1),
+                )
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

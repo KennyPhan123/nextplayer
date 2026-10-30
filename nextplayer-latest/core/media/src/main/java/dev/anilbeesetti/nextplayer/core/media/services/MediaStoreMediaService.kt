@@ -119,30 +119,28 @@ class MediaStoreMediaService(
         .flowOn(Dispatchers.IO)
         .distinctUntilChanged()
 
-    override suspend fun fetchFolders(folderPath: String?): List<MediaFolder> =
-        withContext(Dispatchers.IO) {
-            val videos = fetchVideos(folderPath = folderPath)
+    override suspend fun fetchFolders(folderPath: String?): List<MediaFolder> = withContext(Dispatchers.IO) {
+        val videos = fetchVideos(folderPath = folderPath)
 
-            val videosByFolder = videos.groupBy { File(it.path).parentFile }
+        val videosByFolder = videos.groupBy { File(it.path).parentFile }
 
-            return@withContext videosByFolder.mapNotNull { (folder, folderVideos) ->
-                folder?.let {
-                    MediaFolder(
-                        path = it.path,
-                        name = it.prettyName,
-                        dateModified =
-                            folderVideos.maxOfOrNull { video -> video.dateModified } ?: 0L,
-                        totalSize = folderVideos.sumOf { video -> video.size },
-                        totalDuration = folderVideos.sumOf { video -> video.duration },
-                        videosCount = folderVideos.size,
-                        foldersCount = 0,
-                    )
-                }
+        return@withContext videosByFolder.mapNotNull { (folder, folderVideos) ->
+            folder?.let {
+                MediaFolder(
+                    path = it.path,
+                    name = it.prettyName,
+                    dateModified =
+                        folderVideos.maxOfOrNull { video -> video.dateModified } ?: 0L,
+                    totalSize = folderVideos.sumOf { video -> video.size },
+                    totalDuration = folderVideos.sumOf { video -> video.duration },
+                    videosCount = folderVideos.size,
+                    foldersCount = 0,
+                )
             }
         }
+    }
 
-    override suspend fun fetchVideos(folderPath: String?): List<MediaVideo> =
-        withContext(Dispatchers.IO) { queryVideos(folderPath = folderPath) }
+    override suspend fun fetchVideos(folderPath: String?): List<MediaVideo> = withContext(Dispatchers.IO) { queryVideos(folderPath = folderPath) }
 
     override suspend fun findVideo(uri: Uri): MediaVideo? = withContext(Dispatchers.IO) {
         return@withContext try {

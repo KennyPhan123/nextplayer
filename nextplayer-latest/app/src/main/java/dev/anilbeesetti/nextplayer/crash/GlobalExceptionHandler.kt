@@ -4,8 +4,7 @@ import android.content.Context
 import android.content.Intent
 import kotlin.system.exitProcess
 
-class GlobalExceptionHandler(private val context: Context, private val activity: Class<*>) :
-    Thread.UncaughtExceptionHandler {
+class GlobalExceptionHandler(private val context: Context, private val activity: Class<*>) : Thread.UncaughtExceptionHandler {
     private val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
 
     override fun uncaughtException(t: Thread, e: Throwable) {

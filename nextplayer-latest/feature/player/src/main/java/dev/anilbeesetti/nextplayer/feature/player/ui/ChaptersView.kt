@@ -72,8 +72,7 @@ fun BoxScope.ChaptersView(
 }
 
 @Composable
-internal fun Chapter.titleOrDefault(index: Int): String =
-    title?.value?.takeIf { it.isNotBlank() } ?: stringResource(
-        R.string.chapter_number,
-        index + 1,
-    )
+internal fun Chapter.titleOrDefault(index: Int): String = title?.value?.takeIf { it.isNotBlank() } ?: stringResource(
+    R.string.chapter_number,
+    index + 1,
+)

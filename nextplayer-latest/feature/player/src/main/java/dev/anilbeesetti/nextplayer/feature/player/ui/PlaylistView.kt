@@ -66,14 +66,13 @@ fun BoxScope.PlaylistView(modifier: Modifier = Modifier, show: Boolean, player: 
     val hapticFeedback = LocalHapticFeedback.current
     val playlistState = rememberPlaylistState(player = player)
     val lazyListState = rememberLazyListState()
-    val reorderableLazyListState =
-        rememberReorderableLazyListState(lazyListState = lazyListState) { from, to ->
-            playlistState.moveItem(
-                from.index,
-                to.index,
-            )
-            hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
-        }
+    val reorderableLazyListState = rememberReorderableLazyListState(lazyListState = lazyListState) { from, to ->
+        playlistState.moveItem(
+            from.index,
+            to.index,
+        )
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+    }
 
     // Auto-scroll to current item when playlist opens
     LaunchedEffect(key1 = show) {

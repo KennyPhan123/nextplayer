@@ -148,11 +148,16 @@
     <string name="decoder_hardware_description">Hardware MediaCodec decoders only</string>
     <string name="decoder_system_software_description">Android software MediaCodec decoders only</string>
     <string name="decoder_app_software_description">Bundled FFmpeg software decoder</string>
+    <string name="decoder_auto_description">Automatic (hardware, audio passthrough, or FFmpeg fallback)</string>
+    <string name="dv7_fallback">Dolby Vision Profile 7 Fallback</string>
+    <string name="dv7_fallback_desc">Play Dolby Vision profile 7 content as HDR10 on supported HDR displays. Applies to new playback sessions.</string>
     <string name="video_decoder_mode_not_supported">%1$s video decoder is not supported</string>
     <string name="audio_decoder_mode_not_supported">%1$s audio decoder is not supported</string>
     <string name="no_supported_decoder">No supported decoder is available for this media.</string>
     <string name="embedded_styles">Embedded styles</string>
     <string name="embedded_styles_desc">Apply the embedded styles that are present in subtitle files, such as ASS and so on</string>
+    <string name="subtitle_pin_to_video">Pin subtitle to video</string>
+    <string name="subtitle_pin_to_video_desc">Subtitle moves with video when zooming or panning. Improves PGS/bitmap subtitle rendering</string>
     <string name="controller_timeout">Controller timeout</string>
     <string name="seek_increment">Seek increment</string>
     <string name="seconds">%1$s seconds</string>

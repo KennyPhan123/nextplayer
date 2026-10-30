@@ -74,8 +74,7 @@ class LocalNetworkConnectionRepositoryTest {
 
         override fun getAll(): Flow<List<NetworkConnectionEntity>> = connections
 
-        override suspend fun getById(id: Long): NetworkConnectionEntity? =
-            connections.value.firstOrNull { it.id == id }
+        override suspend fun getById(id: Long): NetworkConnectionEntity? = connections.value.firstOrNull { it.id == id }
 
         override suspend fun deleteById(id: Long) {
             connections.value = connections.value.filterNot { it.id == id }

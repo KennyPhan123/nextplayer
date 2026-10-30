@@ -331,79 +331,78 @@ class NetworkViewModelTest {
     }
 
     @Test
-    fun `public deletion path handles lookup delete and cleanup failures`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val lookupEvents = mutableListOf<String>()
-            val deleteEvents = mutableListOf<String>()
-            val cleanupEvents = mutableListOf<String>()
-            NetworkViewModel(
-                output = NetworkViewModel.Output(
-                    addConnection = {},
-                    editConnection = {},
-                    openConnection = {},
-                    openSettings = {},
-                    openStream = {},
-                ),
-                repository = FakeNetworkConnectionRepository(
-                    connection = null,
-                    events = lookupEvents,
-                    lookupFailure = IllegalStateException("lookup"),
-                ),
-                sshKeyStore = FakeSshKeyStore(events = lookupEvents),
-            ).onAction(NetworkAction.DeleteConnection(id = 1))
+    fun `public deletion path handles lookup delete and cleanup failures`() = runTest(mainDispatcherRule.testDispatcher) {
+        val lookupEvents = mutableListOf<String>()
+        val deleteEvents = mutableListOf<String>()
+        val cleanupEvents = mutableListOf<String>()
+        NetworkViewModel(
+            output = NetworkViewModel.Output(
+                addConnection = {},
+                editConnection = {},
+                openConnection = {},
+                openSettings = {},
+                openStream = {},
+            ),
+            repository = FakeNetworkConnectionRepository(
+                connection = null,
+                events = lookupEvents,
+                lookupFailure = IllegalStateException("lookup"),
+            ),
+            sshKeyStore = FakeSshKeyStore(events = lookupEvents),
+        ).onAction(NetworkAction.DeleteConnection(id = 1))
 
-            NetworkViewModel(
-                output = NetworkViewModel.Output(
-                    addConnection = {},
-                    editConnection = {},
-                    openConnection = {},
-                    openSettings = {},
-                    openStream = {},
-                ),
-                repository = FakeNetworkConnectionRepository(
-                    connection = connection(privateKeyFileName = "delete.key"),
-                    events = deleteEvents,
-                    deleteFailure = IllegalStateException("delete"),
-                ),
-                sshKeyStore = FakeSshKeyStore(events = deleteEvents),
-            ).onAction(NetworkAction.DeleteConnection(id = 2))
+        NetworkViewModel(
+            output = NetworkViewModel.Output(
+                addConnection = {},
+                editConnection = {},
+                openConnection = {},
+                openSettings = {},
+                openStream = {},
+            ),
+            repository = FakeNetworkConnectionRepository(
+                connection = connection(privateKeyFileName = "delete.key"),
+                events = deleteEvents,
+                deleteFailure = IllegalStateException("delete"),
+            ),
+            sshKeyStore = FakeSshKeyStore(events = deleteEvents),
+        ).onAction(NetworkAction.DeleteConnection(id = 2))
 
-            NetworkViewModel(
-                output = NetworkViewModel.Output(
-                    addConnection = {},
-                    editConnection = {},
-                    openConnection = {},
-                    openSettings = {},
-                    openStream = {},
-                ),
-                repository = FakeNetworkConnectionRepository(
-                    connection = connection(privateKeyFileName = "cleanup.key"),
-                    events = cleanupEvents,
-                ),
-                sshKeyStore = FakeSshKeyStore(
-                    events = cleanupEvents,
-                    deleteFailure = IllegalStateException("cleanup"),
-                ),
-            ).onAction(NetworkAction.DeleteConnection(id = 3))
+        NetworkViewModel(
+            output = NetworkViewModel.Output(
+                addConnection = {},
+                editConnection = {},
+                openConnection = {},
+                openSettings = {},
+                openStream = {},
+            ),
+            repository = FakeNetworkConnectionRepository(
+                connection = connection(privateKeyFileName = "cleanup.key"),
+                events = cleanupEvents,
+            ),
+            sshKeyStore = FakeSshKeyStore(
+                events = cleanupEvents,
+                deleteFailure = IllegalStateException("cleanup"),
+            ),
+        ).onAction(NetworkAction.DeleteConnection(id = 3))
 
-            advanceUntilIdle()
+        advanceUntilIdle()
 
-            assertEquals(
-                listOf(element = "repository.get:1"),
-                lookupEvents,
-            )
-            assertEquals(
-                listOf(
-                    "repository.get:2",
-                    "repository.delete:2",
-                ),
-                deleteEvents,
-            )
-            assertEquals(
-                "repository.upsert:7",
-                cleanupEvents.last(),
-            )
-        }
+        assertEquals(
+            listOf(element = "repository.get:1"),
+            lookupEvents,
+        )
+        assertEquals(
+            listOf(
+                "repository.get:2",
+                "repository.delete:2",
+            ),
+            deleteEvents,
+        )
+        assertEquals(
+            "repository.upsert:7",
+            cleanupEvents.last(),
+        )
+    }
 
     private fun connection(
         authentication: NetworkAuthentication = NetworkAuthentication.SSH_KEY,
@@ -469,8 +468,7 @@ private class FakeSshKeyStore(
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class MainDispatcherRule(val testDispatcher: TestDispatcher = StandardTestDispatcher()) :
-    TestWatcher() {
+class MainDispatcherRule(val testDispatcher: TestDispatcher = StandardTestDispatcher()) : TestWatcher() {
     override fun starting(description: Description) {
         Dispatchers.setMain(dispatcher = testDispatcher)
     }

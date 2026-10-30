@@ -81,10 +81,9 @@ internal fun PlaylistListScreenContent(
     onAction: (PlaylistUiAction) -> Unit = {},
     onAddToHomeScreen: ((PlaylistSummary) -> Unit)? = null,
 ) {
-    val openM3UFileLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            uri?.let { onAction(PlaylistUiAction.CreateM3UFile(uri = it)) }
-        }
+    val openM3UFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { onAction(PlaylistUiAction.CreateM3UFile(uri = it)) }
+    }
     BindTopLevelFab(
         key = TopLevelFabKey.PLAYLISTS,
         icon = NextIcons.Add,

@@ -49,5 +49,4 @@ class HostKeyConfirmationRequired(
     val fingerprint: String,
 ) : IOException("Confirm SSH host key $fingerprint for $host:$port")
 
-class HostKeyMismatch(val expectedFingerprint: String, val presentedFingerprint: String) :
-    IOException("SSH host key changed")
+class HostKeyMismatch(val expectedFingerprint: String, val presentedFingerprint: String) : IOException("SSH host key changed")

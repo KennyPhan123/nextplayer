@@ -205,14 +205,13 @@ class MediaControllerTest {
             override fun onConnect(
                 session: MediaSession,
                 controller: MediaSession.ControllerInfo,
-            ): MediaSession.ConnectionResult =
-                MediaSession.ConnectionResult.AcceptedResultBuilder(session)
-                    .setAvailableSessionCommands(
-                        MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
-                            .add(CustomCommands.SET_IS_SCRUBBING_MODE_ENABLED.sessionCommand)
-                            .build(),
-                    )
-                    .build()
+            ): MediaSession.ConnectionResult = MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                        .add(CustomCommands.SET_IS_SCRUBBING_MODE_ENABLED.sessionCommand)
+                        .build(),
+                )
+                .build()
 
             override fun onCustomCommand(
                 session: MediaSession,
@@ -288,8 +287,7 @@ class MediaControllerTest {
     class TestMediaSessionService : MediaSessionService() {
         lateinit var session: MediaSession
 
-        override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession =
-            session
+        override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession = session
     }
 
     private class TestLifecycleOwner : LifecycleOwner {

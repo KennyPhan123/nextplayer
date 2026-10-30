@@ -369,29 +369,28 @@ private fun SimpleSlider(
 }
 
 @OptIn(UnstableApi::class)
-private fun Modifier.chapterGaps(chapters: List<Chapter>, duration: Float): Modifier =
-    drawWithCache {
-        val gaps = Path()
-        if (duration > 0f) {
-            val halfGap = 1.5.dp.toPx()
-            chapters.forEach { chapter ->
-                if (chapter.startTimeMs > 0 && chapter.startTimeMs < duration) {
-                    val x = size.width * (chapter.startTimeMs / duration)
-                    gaps.addRect(
-                        rect = Rect(
-                            left = x - halfGap,
-                            top = 0f,
-                            right = x + halfGap,
-                            size.height,
-                        ),
-                    )
-                }
+private fun Modifier.chapterGaps(chapters: List<Chapter>, duration: Float): Modifier = drawWithCache {
+    val gaps = Path()
+    if (duration > 0f) {
+        val halfGap = 1.5.dp.toPx()
+        chapters.forEach { chapter ->
+            if (chapter.startTimeMs > 0 && chapter.startTimeMs < duration) {
+                val x = size.width * (chapter.startTimeMs / duration)
+                gaps.addRect(
+                    rect = Rect(
+                        left = x - halfGap,
+                        top = 0f,
+                        right = x + halfGap,
+                        size.height,
+                    ),
+                )
             }
         }
-        onDrawWithContent {
-            clipPath(
-                path = gaps,
-                ClipOp.Difference,
-            ) { this@onDrawWithContent.drawContent() }
-        }
     }
+    onDrawWithContent {
+        clipPath(
+            path = gaps,
+            ClipOp.Difference,
+        ) { this@onDrawWithContent.drawContent() }
+    }
+}

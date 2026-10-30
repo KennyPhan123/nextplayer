@@ -197,18 +197,17 @@ class LocalVaultRepository(
         )
     }
 
-    override suspend fun unhideVideos(videos: List<Video>): UnhideResult =
-        vaultMutationMutex.withLock {
-            val restored = withContext(Dispatchers.IO) {
-                entitiesFor(videos = videos).mapNotNull { entity ->
-                    restoreToMediaStore(entity = entity)?.let { relocated ->
-                        entity.id to relocated
-                    }
+    override suspend fun unhideVideos(videos: List<Video>): UnhideResult = vaultMutationMutex.withLock {
+        val restored = withContext(Dispatchers.IO) {
+            entitiesFor(videos = videos).mapNotNull { entity ->
+                restoreToMediaStore(entity = entity)?.let { relocated ->
+                    entity.id to relocated
                 }
             }
-            if (restored.isNotEmpty()) hiddenVideoDao.deleteByIds(restored.map { it.first })
-            UnhideResult(relocatedCount = restored.count { (_, relocated) -> relocated })
         }
+        if (restored.isNotEmpty()) hiddenVideoDao.deleteByIds(restored.map { it.first })
+        UnhideResult(relocatedCount = restored.count { (_, relocated) -> relocated })
+    }
 
     /**
      * Recreates the video in shared storage via a MediaStore insert, streams the vault file
@@ -354,13 +353,12 @@ class LocalVaultRepository(
         }?.let { "$it/" }
     }
 
-    override suspend fun deleteHiddenVideos(videos: List<Video>): Unit =
-        vaultMutationMutex.withLock {
-            val entities = entitiesFor(videos = videos)
-            if (entities.isEmpty()) return@withLock
-            entities.forEach { File(it.vaultPath).delete() }
-            hiddenVideoDao.deleteByIds(entities.map { it.id })
-        }
+    override suspend fun deleteHiddenVideos(videos: List<Video>): Unit = vaultMutationMutex.withLock {
+        val entities = entitiesFor(videos = videos)
+        if (entities.isEmpty()) return@withLock
+        entities.forEach { File(it.vaultPath).delete() }
+        hiddenVideoDao.deleteByIds(entities.map { it.id })
+    }
 
     override suspend fun getHiddenVideoInfo(id: Long): MediaInfo? {
         val entity = hiddenVideoDao.getById(id = id) ?: return null

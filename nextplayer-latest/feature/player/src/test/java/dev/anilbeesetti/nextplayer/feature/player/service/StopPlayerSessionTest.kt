@@ -182,11 +182,10 @@ class StopPlayerSessionTest {
                 modules = module {
                     single<MediaRepository> {
                         object : MediaRepository by FakeMediaRepository() {
-                            override suspend fun updateMediumPosition(uri: String, position: Long) =
-                                savePosition(
-                                    uri,
-                                    position,
-                                )
+                            override suspend fun updateMediumPosition(uri: String, position: Long) = savePosition(
+                                uri,
+                                position,
+                            )
                         }
                     }
                 },

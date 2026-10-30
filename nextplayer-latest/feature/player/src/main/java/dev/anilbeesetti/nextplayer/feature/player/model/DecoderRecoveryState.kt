@@ -24,5 +24,7 @@ data class DecoderRecoveryState(
 data class DecoderServiceState(
     val videoMode: DecoderMode? = null,
     val audioMode: DecoderMode? = null,
+    val requestedVideoMode: DecoderMode = DecoderMode.AUTO,
+    val requestedAudioMode: DecoderMode = DecoderMode.AUTO,
     val recoveryState: DecoderRecoveryState = DecoderRecoveryState(),
 )

@@ -94,11 +94,16 @@ class PlayerViewModel(
 
     suspend fun getPlaylistFromUri(uri: Uri): List<Video> = getSortedPlaylistUseCase.invoke(uri)
 
-    private fun updateVideoZoom(uri: String, zoom: Float) {
+    private fun updateVideoZoom(
+        uri: String,
+        zoomX: Float,
+        zoomY: Float,
+    ) {
         viewModelScope.launch {
             mediaRepository.updateMediumZoom(
                 uri = uri,
-                zoom = zoom,
+                zoomX = zoomX,
+                zoomY = zoomY,
             )
         }
     }
@@ -139,8 +144,9 @@ class PlayerViewModel(
 
             is VideoZoomEvent.ZoomChanged -> {
                 updateVideoZoom(
-                    event.mediaItem.mediaId,
-                    event.zoom,
+                    uri = event.mediaItem.mediaId,
+                    zoomX = event.zoomX,
+                    zoomY = event.zoomY,
                 )
             }
         }

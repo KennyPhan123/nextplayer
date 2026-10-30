@@ -18,22 +18,18 @@ import org.koin.core.annotation.Single
 @Single
 class LocalPlaylistRepository(private val playlistDao: PlaylistDao) : PlaylistRepository {
 
-    override fun observePlaylists(): Flow<List<PlaylistSummary>> =
-        playlistDao.observeSummaries().map { summaries ->
-            summaries.map(transform = PlaylistSummaryEntity::toModel)
-        }
+    override fun observePlaylists(): Flow<List<PlaylistSummary>> = playlistDao.observeSummaries().map { summaries ->
+        summaries.map(transform = PlaylistSummaryEntity::toModel)
+    }
 
-    override fun observePlaylist(playlistId: Long): Flow<PlaylistRecord?> =
-        playlistDao.observePlaylist(playlistId = playlistId).map { it?.toModel() }
+    override fun observePlaylist(playlistId: Long): Flow<PlaylistRecord?> = playlistDao.observePlaylist(playlistId = playlistId).map { it?.toModel() }
 
-    override suspend fun getPlaylist(playlistId: Long): PlaylistRecord? =
-        playlistDao.getPlaylist(playlistId = playlistId)?.toModel()
+    override suspend fun getPlaylist(playlistId: Long): PlaylistRecord? = playlistDao.getPlaylist(playlistId = playlistId)?.toModel()
 
-    override suspend fun create(name: String, videoUris: List<String>): Long =
-        playlistDao.createPlaylist(
-            name = name.validatedName(),
-            uris = videoUris.distinct(),
-        )
+    override suspend fun create(name: String, videoUris: List<String>): Long = playlistDao.createPlaylist(
+        name = name.validatedName(),
+        uris = videoUris.distinct(),
+    )
 
     override suspend fun createM3U(
         type: PlaylistType,
@@ -104,15 +100,13 @@ class LocalPlaylistRepository(private val playlistDao: PlaylistDao) : PlaylistRe
         )
     }
 
-    override suspend fun countFilePlaylistsBySource(source: String): Int =
-        playlistDao.countPlaylistsByTypeAndSource(
-            PlaylistType.M3U_FILE.name,
-            source = source,
-        )
+    override suspend fun countFilePlaylistsBySource(source: String): Int = playlistDao.countPlaylistsByTypeAndSource(
+        PlaylistType.M3U_FILE.name,
+        source = source,
+    )
 }
 
-private fun String.validatedName(): String =
-    trim().also { require(it.isNotEmpty()) { "Playlist name cannot be blank" } }
+private fun String.validatedName(): String = trim().also { require(it.isNotEmpty()) { "Playlist name cannot be blank" } }
 
 private fun PlaylistSummaryEntity.toModel() = PlaylistSummary(
     id = id,
@@ -141,15 +135,14 @@ private fun PlaylistWithItems.toModel() = PlaylistRecord(
     lastRefreshedAt = playlist.lastRefreshedAt,
 )
 
-private fun List<M3UPlaylistItem>.toEntities(playlistId: Long = 0): List<PlaylistItemEntity> =
-    mapIndexed { position, item ->
-        PlaylistItemEntity(
-            playlistId = playlistId,
-            uri = item.uri,
-            position = position,
-            title = item.title,
-            tvgLogo = item.tvgLogo,
-            duration = item.duration,
-            groupTitle = item.groupTitle,
-        )
-    }
+private fun List<M3UPlaylistItem>.toEntities(playlistId: Long = 0): List<PlaylistItemEntity> = mapIndexed { position, item ->
+    PlaylistItemEntity(
+        playlistId = playlistId,
+        uri = item.uri,
+        position = position,
+        title = item.title,
+        tvgLogo = item.tvgLogo,
+        duration = item.duration,
+        groupTitle = item.groupTitle,
+    )
+}
