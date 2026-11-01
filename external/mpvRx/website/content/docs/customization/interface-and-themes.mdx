@@ -1,0 +1,49 @@
+---
+title: Interface and themes
+description: Personalize mpvRx themes, player animations, browser layouts, and per-orientation controls.
+---
+
+mpvRx combines Material 3 Expressive surfaces with controls that can be reorganized independently for portrait and landscape playback.
+
+## Appearance
+
+- Choose from more than 25 built-in palettes, including Dynamic color, Catppuccin, Nord, Tokyo Night, Rose Pine, Gruvbox, and Dracula.
+- Enable the AMOLED variant for pure-black backgrounds.
+- Keep player controls dark independently from the rest of the app.
+- Select a control transition: Default, Elastic Bounce, Cinematic Scale, Slide Up, or Minimal Fade.
+
+Dynamic color follows the supported Android system palette. Fixed themes are useful when you want the same appearance across devices.
+
+## Player layout
+
+Edit the top-right, bottom-left, bottom-right, and portrait-bottom control zones. Keep high-frequency controls near the edge reached by your normal grip, and move infrequent actions into the More sheet.
+
+:::tip
+Configure portrait and landscape separately. A comfortable phone layout often becomes too sparse on a tablet or landscape display.
+:::
+
+Each zone editor includes a live sample-player preview and a **Playback layout** selector. Adding, removing, reordering, or resetting buttons updates the highlighted region immediately, and changes are saved as you edit. The preview stays visible as the palette scrolls; wider or short windows place it beside the palette. Its Playlist toggle shows or hides sample Previous/Next buttons without changing your actual playlist preference.
+
+Android video playback has four compact presets per orientation: centered playback with the seekbar above or below the actions, or a shared playback/actions row above or below the seekbar. The three landscape editors share one landscape preset; the portrait editor has its own. Existing saved positions map to these presets without resetting your action buttons. Search links for playback or seekbar placement open the appropriate editor directly.
+
+The preview uses sample content, not a second video player. It shares the playback layout and sizing rules, reflects button background and seekbar styling, and does not run playback, Cast, PiP, or script actions. Reset affects the current region's buttons and does not move buttons already used in another region or reset the orientation preset.
+
+Shared rows keep Play/Pause and playlist Previous/Next accessible while the side actions scroll. A single video reserves only Play/Pause, and empty action groups do not create an extra row. Very narrow windows fall back to centered playback rather than clipping touch targets. These presets do not change TV or audio-player layouts.
+
+Custom Lua button rows remain above the bottom controls. Skip markers clear the taller visible Lua row, including when a custom label increases its height. Expanded Liquid Glass A/B endpoint buttons stay square when showing just their letters; recorded timestamps can grow into wider pills.
+
+The left in-player settings dock includes only settings usable during video playback. Restart-only, next-video, music-library, and browser-only settings stay in the main Settings and are excluded from the dock's search and favorites. Settings controlled by `mpv.conf` retain their disabled explanation. The dock's expand/collapse animation respects reduced motion.
+
+In-app toasts retain their normal stack, position, and timing. Swipe left or right to dismiss; vertical drags are not used to dismiss them.
+
+## Browser layout
+
+Local video and music views can use grids or lists with orientation-specific column counts. Album view emphasizes media groups; Tree view exposes filesystem hierarchy. Tablet layouts can place folders or settings beside their detail content.
+
+## Safe areas
+
+Window offsets and display-cutout behavior keep controls clear of camera notches and system areas. Use full-bleed only when the device and content benefit from it.
+
+## App icon
+
+The solid purple ribbon is the default mpvRx icon. Under **Settings → Appearance → App icon**, you can choose solid purple, gradient purple, or classic. Phone and TV launchers switch together, and the matching system splash and Recents artwork follow the selection. An explicitly selected icon is preserved across app upgrades.
