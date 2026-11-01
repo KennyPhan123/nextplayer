@@ -1,0 +1,60 @@
+---
+title: Subtitles
+description: Select, style, search, synchronize, and generate subtitles in mpvRx.
+---
+
+mpvRx supports primary and secondary subtitle tracks, local files, embedded tracks, online search, custom fonts, and experimental speech-to-subtitle workflows.
+
+## Select and synchronize tracks
+
+Open the subtitle controls during playback to select a track or explicitly turn subtitles off. Primary and secondary tracks are positioned independently to reduce overlap. Delay controls let you correct a constant timing offset without rewriting the subtitle file.
+
+## Styling
+
+You can configure font, size, weight, italics, border, shadow, color, alignment, and scale behavior. ASS override modes decide how much embedded styling is preserved.
+
+For custom fonts:
+
+1. Choose a subtitle font directory.
+2. Reload the font catalog.
+3. Select the preferred default font.
+4. Clear the font cache if a replaced file does not appear.
+
+## Move and resize during playback
+
+Enable **Drag to move subtitles** in gesture settings. Drag visible primary or secondary subtitle text vertically to move only that track. A temporary highlight identifies the selected track. Hold in the center away from subtitle text, then drag to move both tracks together.
+
+With **Pinch to zoom subtitles** enabled, pinch over either track to resize it. A pinch on the secondary subtitle adjusts only the secondary track. The existing **Pinch zooms secondary subtitle** option still links secondary scaling to a pinch on the primary; disable it for fully independent sizing. Two-finger vertical movement also repositions the selected track when subtitle dragging is enabled.
+
+The **Zoom** bottom sheet has separate **Zoom subtitles with video** and **Zoom statistics with video** switches. Both default to off: video zoom and pan affect the video plane, leaving subtitle size and stats pages 1–6 independent. Enabling a switch scales that overlay with the video zoom without changing its saved base size.
+
+Positions and sizes use the existing subtitle settings and are remembered. Direct dragging stays within 0–100%; the settings sliders retain the advanced 0–150% range. Horizontal swipes on the primary subtitle still seek dialogue. Locked controls block these gestures, and options owned by `mpv.conf` stay protected.
+
+The touch region is estimated from the current text and font settings. Custom-positioned ASS signs and image subtitles may not have matching text bounds; use the subtitle position controls for those formats.
+
+## Online search
+
+Three search modes are available:
+
+| Mode | Behavior |
+| --- | --- |
+| **Wyzie** | Searches the Wyzie-backed catalog. |
+| **SubtitleHub** | Searches the enabled SubtitleHub sources. Some providers require an API key. |
+| **Hybrid** | Runs both paths and combines results. |
+
+TMDB-assisted search can identify a title, season, and episode before querying providers. Verify the selected episode when filenames use unusual anime or absolute numbering.
+
+:::warning
+Do not publish provider API keys in bug reports or screenshots. Include the provider name and error behavior instead.
+:::
+
+## Speech-to-subtitle
+
+Supported cloud and offline Whisper providers can generate subtitles from the active audio. This feature is experimental. Processing time, language support, privacy, and network use depend on the selected provider.
+
+## Troubleshooting
+
+- Wrong language: review preferred subtitle languages and the selected track.
+- Overlapping dual subtitles: adjust secondary position or ASS override behavior.
+- Search returns nothing: confirm the title, season, episode, language, provider selection, and API key where required.
+- Styling seems ignored: test a plain SRT file, then review ASS override settings.

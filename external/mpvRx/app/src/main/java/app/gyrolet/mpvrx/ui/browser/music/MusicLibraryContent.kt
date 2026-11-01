@@ -1,0 +1,2791 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+package app.gyrolet.mpvrx.ui.browser.music
+
+import android.app.Application
+import android.net.Uri
+import android.text.format.DateUtils
+import app.gyrolet.mpvrx.ui.browser.jellyfin.JellyfinViewModel
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import app.gyrolet.mpvrx.ui.theme.AppMotion
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import app.gyrolet.mpvrx.ui.browser.cards.mediaCardClickable
+import app.gyrolet.mpvrx.ui.browser.components.mediaItemMotion
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import app.gyrolet.mpvrx.ui.utils.NavigationPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
+import app.gyrolet.mpvrx.presentation.components.AppDialogTextButton as TextButton
+import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.animateFloatingActionButton
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.rememberTooltipState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import kotlin.math.floor
+import kotlin.math.sqrt
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import app.gyrolet.mpvrx.R
+import app.gyrolet.mpvrx.domain.thumbnail.getArtwork
+import app.gyrolet.mpvrx.database.entities.PlaylistEntity
+import app.gyrolet.mpvrx.database.repository.PlaylistRepository
+import app.gyrolet.mpvrx.domain.media.model.Video
+import app.gyrolet.mpvrx.presentation.components.RemoteImage
+import app.gyrolet.mpvrx.presentation.components.pullrefresh.PullRefreshBox
+import app.gyrolet.mpvrx.preferences.BrowserPreferences
+import app.gyrolet.mpvrx.preferences.AppearancePreferences
+import app.gyrolet.mpvrx.preferences.MediaServerPreferences
+import app.gyrolet.mpvrx.preferences.VideoSwipeAction
+import app.gyrolet.mpvrx.preferences.preference.collectAsState
+import app.gyrolet.mpvrx.ui.preferences.PreferencesScreen
+import app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight
+import app.gyrolet.mpvrx.ui.browser.MainScreen
+import app.gyrolet.mpvrx.presentation.components.captureLiquidGlassBackdrop
+import app.gyrolet.mpvrx.ui.browser.components.BrowserBottomBar
+import app.gyrolet.mpvrx.ui.browser.components.rememberBrowserBottomBarBackdrop
+import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
+import app.gyrolet.mpvrx.ui.browser.components.QueueInsertion
+import app.gyrolet.mpvrx.ui.browser.components.addVideosToPlaybackQueue
+import app.gyrolet.mpvrx.ui.browser.components.rememberSwipePlaybackInfo
+import app.gyrolet.mpvrx.ui.browser.components.rememberVideoSwipeActions
+import app.gyrolet.mpvrx.ui.browser.dialogs.AddToPlaylistDialog
+import app.gyrolet.mpvrx.ui.browser.dialogs.toPlaylistCandidates
+import app.gyrolet.mpvrx.ui.browser.fab.FabPlacement
+import app.gyrolet.mpvrx.ui.browser.fab.FabScrollHelper
+import app.gyrolet.mpvrx.ui.browser.dialogs.DeleteConfirmationDialog
+import app.gyrolet.mpvrx.ui.browser.dialogs.FolderSortDialog
+import app.gyrolet.mpvrx.ui.browser.dialogs.MusicSortDialog
+import app.gyrolet.mpvrx.ui.player.controls.components.MiniAudioVisualizer
+import app.gyrolet.mpvrx.ui.browser.folderlist.FolderListScreen
+import app.gyrolet.mpvrx.ui.browser.playlist.PlaylistDetailScreen
+import app.gyrolet.mpvrx.ui.browser.selection.rememberSelectionManager
+import app.gyrolet.mpvrx.ui.browser.dialogs.rememberSelectionInfoAction
+import app.gyrolet.mpvrx.ui.browser.cards.SelectionIndicator
+import app.gyrolet.mpvrx.ui.browser.cards.animatedSelectionColor
+import app.gyrolet.mpvrx.ui.browser.cards.MediaSelectionNeighbors
+import app.gyrolet.mpvrx.ui.browser.cards.MediaSelectionGridGap
+import app.gyrolet.mpvrx.ui.browser.cards.MediaSelectionListGap
+import app.gyrolet.mpvrx.ui.browser.cards.mediaSelectionNeighbors
+import app.gyrolet.mpvrx.ui.browser.cards.rememberMediaSelectionShape
+import app.gyrolet.mpvrx.ui.player.PlaybackSession
+import app.gyrolet.mpvrx.ui.components.InlineSearchBar
+import app.gyrolet.mpvrx.ui.browser.components.ExpressiveScrollBar
+import app.gyrolet.mpvrx.ui.browser.components.fastScrollGlyph
+import app.gyrolet.mpvrx.ui.icons.Icon
+import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.theme.AppShapeScale
+import app.gyrolet.mpvrx.ui.player.controls.components.tvContextMenu
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
+import app.gyrolet.mpvrx.ui.utils.rememberTabNavigation
+import app.gyrolet.mpvrx.ui.tv.focusableWhen
+import app.gyrolet.mpvrx.utils.media.MediaUtils
+import app.gyrolet.mpvrx.utils.permission.PermissionUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import org.koin.compose.koinInject
+
+private fun MusicSong.toVideo(): Video {
+  return Video(
+    id = id,
+    title = title,
+    displayName = title,
+    path = path,
+    uri = uri,
+    duration = durationMs,
+    durationFormatted = DateUtils.formatElapsedTime(durationMs / 1000),
+    size = size,
+    sizeFormatted = "",
+    dateModified = dateModified,
+    dateAdded = dateAdded,
+    mimeType = "audio/*",
+    bucketId = "",
+    bucketDisplayName = "",
+    width = 0,
+    height = 0,
+    fps = 0f,
+    resolution = "",
+    isAudio = true
+  )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun MusicLibraryContent(
+  modifier: Modifier = Modifier,
+  musicViewModel: MusicLibraryViewModel = viewModel(),
+  jellyfinViewModel: JellyfinViewModel? = null,
+  navidromeViewModel: app.gyrolet.mpvrx.ui.browser.navidrome.NavidromeViewModel? = null,
+) {
+  val context = LocalContext.current
+  val backStack = LocalBackStack.current
+  val scope = rememberCoroutineScope()
+  val navigationHaptics = app.gyrolet.mpvrx.ui.utils.rememberAppHaptics()
+
+  val jfViewModel: JellyfinViewModel =
+    jellyfinViewModel
+      ?: viewModel(factory = JellyfinViewModel.factory(context.applicationContext as Application))
+  val jellyfinUiState by jfViewModel.uiState.collectAsStateWithLifecycle()
+  val hasJellyfinMusicLibrary = jellyfinUiState.hasMusicLibrary
+
+  val navidromeRepository = koinInject<app.gyrolet.mpvrx.repository.NavidromeRepository>()
+  val navidromeServers by navidromeRepository.allServers.collectAsState(initial = emptyList())
+  val hasNavidromeServer = navidromeServers.isNotEmpty()
+
+  val selectedTab by musicViewModel.selectedTab.collectAsState()
+  val searchQuery by musicViewModel.searchQuery.collectAsState()
+  val sortField by musicViewModel.sortField.collectAsState()
+  val sortOrder by musicViewModel.sortOrder.collectAsState()
+  val viewMode by musicViewModel.viewMode.collectAsState()
+  val isLoading by musicViewModel.isLoading.collectAsState()
+  LaunchedEffect(musicViewModel) { musicViewModel.ensureLibraryLoaded() }
+
+  val songs by musicViewModel.filteredSongs.collectAsState()
+  val albums by musicViewModel.filteredAlbums.collectAsState()
+  val artists by musicViewModel.filteredArtists.collectAsState()
+  val playlists by musicViewModel.playlists.collectAsState()
+
+  val selectedAlbum by musicViewModel.selectedAlbum.collectAsState()
+  val selectedArtist by musicViewModel.selectedArtist.collectAsState()
+  val recentlyPlayedFilePath by musicViewModel.recentlyPlayedFilePath.collectAsState()
+  val isPlaybackActive by musicViewModel.isPlaybackActive.collectAsState()
+
+  val browserPreferences = koinInject<BrowserPreferences>()
+  val mediaServerPreferences = koinInject<MediaServerPreferences>()
+  val currentMusicSource by mediaServerPreferences.musicSourceProvider.collectAsState()
+  val foldersPreferences = koinInject<app.gyrolet.mpvrx.preferences.FoldersPreferences>()
+  val folderSortType by browserPreferences.folderSortType.collectAsState()
+  val folderSortOrder by browserPreferences.folderSortOrder.collectAsState()
+  val coverArtSizeDp by browserPreferences.musicCoverArtSize.collectAsState()
+  val gridCoverArtSizeDp by browserPreferences.musicGridCoverArtSize.collectAsState()
+
+  val isRefreshing = remember { mutableStateOf(false) }
+  var isSearchActive by remember { mutableStateOf(false) }
+  val searchFocusRequester = remember { FocusRequester() }
+  LaunchedEffect(isSearchActive) {
+    if (isSearchActive) searchFocusRequester.requestFocus()
+  }
+  var isSortMenuExpanded by remember { mutableStateOf(false) }
+  var showCreatePlaylistDialog by remember { mutableStateOf(false) }
+
+  var selectedSongForOptions by remember { mutableStateOf<MusicSong?>(null) }
+  var selectedAlbumForOptions by remember { mutableStateOf<MusicAlbum?>(null) }
+  var selectedArtistForOptions by remember { mutableStateOf<MusicArtist?>(null) }
+  var selectedPlaylistForOptions by remember { mutableStateOf<PlaylistEntity?>(null) }
+  var selectedVideosForAddToPlaylist by remember { mutableStateOf<List<Video>?>(null) }
+  var showDeletePlaylistDialog by remember { mutableStateOf<PlaylistEntity?>(null) }
+  var showDeleteSelectedDialog by remember { mutableStateOf(false) }
+  var selectedSongForDelete by remember { mutableStateOf<MusicSong?>(null) }
+
+  val songSelectionManager = rememberSelectionManager(
+    items = songs,
+    getId = { it.id },
+    onDeleteItems = { selectedSongs, _ ->
+      musicViewModel.deleteSongs(context, selectedSongs)
+    },
+    onOperationComplete = { musicViewModel.scanLibrary(context) }
+  )
+
+  val albumSelectionManager = rememberSelectionManager(
+    items = albums,
+    getId = { it.id },
+    onDeleteItems = { _, _ -> Pair(0, 0) }
+  )
+
+  val artistSelectionManager = rememberSelectionManager(
+    items = artists,
+    getId = { it.id },
+    onDeleteItems = { _, _ -> Pair(0, 0) }
+  )
+
+  val playlistSelectionManager = rememberSelectionManager(
+    items = playlists,
+    getId = { it.id.toLong() },
+    onDeleteItems = { selectedPlaylists, _ ->
+      selectedPlaylists
+        .filterNot { it.name.equals(PlaylistRepository.FAVORITES_PLAYLIST_NAME, ignoreCase = true) }
+        .forEach { musicViewModel.deletePlaylist(it) }
+      Pair(selectedPlaylists.size, 0)
+    }
+  )
+
+  val activeSelectionManager = when (selectedTab) {
+    MusicTab.SONGS -> songSelectionManager
+    MusicTab.ALBUMS -> albumSelectionManager
+    MusicTab.ARTISTS -> artistSelectionManager
+    MusicTab.PLAYLISTS -> playlistSelectionManager
+    // Folders tab reuses FolderListScreen, which owns its own selection state.
+    MusicTab.FOLDERS -> songSelectionManager
+  }
+  val showSongSelectionInfo = rememberSelectionInfoAction(
+    videos = { songSelectionManager.getSelectedItems().map { it.toVideo() } },
+    onSingleOpened = { songSelectionManager.clear() },
+  )
+
+  @Suppress("UNCHECKED_CAST")
+  fun selectedMusicVideos(): List<Video> {
+    val items = activeSelectionManager.getSelectedItems()
+    return when (selectedTab) {
+      MusicTab.SONGS -> (items as List<MusicSong>).map { song -> song.toVideo() }
+      MusicTab.ALBUMS -> {
+        val selectedAlbums = items as List<MusicAlbum>
+        selectedAlbums
+          .flatMap { album -> songs.filter { song -> song.albumKey == album.id }.sortedByAlbumTrack() }
+          .map { song -> song.toVideo() }
+      }
+      MusicTab.ARTISTS -> {
+        val selectedArtists = items as List<MusicArtist>
+        songs
+          .filter { song -> selectedArtists.any { artist -> song.artist.equals(artist.name, true) } }
+          .map { song -> song.toVideo() }
+      }
+      MusicTab.PLAYLISTS,
+      MusicTab.FOLDERS,
+      -> emptyList()
+    }
+  }
+
+  val visibleTabs by musicViewModel.visibleTabs.collectAsState()
+
+  val appearancePreferences = koinInject<AppearancePreferences>()
+  val showQuickPlayFab by appearancePreferences.showQuickPlayFab.collectAsState()
+  val quickPlayFabDirect by appearancePreferences.quickPlayFabDirect.collectAsState()
+  val isFabVisible = remember { mutableStateOf(true) }
+  val isFabExpanded = remember { mutableStateOf(false) }
+  val navigationBarHeight = LocalNavigationBarHeight.current
+
+  val initialPageIndex = remember(selectedTab, visibleTabs) {
+    visibleTabs.indexOf(selectedTab).coerceAtLeast(0)
+  }
+  val pagerState = rememberPagerState(initialPage = initialPageIndex) { visibleTabs.size }
+  val navigateTab = rememberTabNavigation(pagerState)
+
+  val permissionState = PermissionUtils.handleStoragePermission(
+    audioOnly = true,
+    onPermissionGranted = { musicViewModel.scanLibrary(context) },
+  )
+
+  LaunchedEffect(pagerState, visibleTabs) {
+    if (visibleTabs.isEmpty()) return@LaunchedEffect
+    // Restore by tab identity before publishing page indices after tabs are hidden/reordered.
+    pagerState.scrollToPage(visibleTabs.indexOf(selectedTab).coerceAtLeast(0))
+    snapshotFlow { pagerState.settledPage to pagerState.isScrollInProgress }
+      .collect { (page, scrolling) ->
+        if (!scrolling) visibleTabs.getOrNull(page)?.let(musicViewModel::setTab)
+      }
+  }
+
+  LaunchedEffect(selectedTab) {
+    val targetIndex = visibleTabs.indexOf(selectedTab)
+    if (targetIndex >= 0) {
+      navigateTab(targetIndex)
+    }
+    songSelectionManager.clear()
+    albumSelectionManager.clear()
+    artistSelectionManager.clear()
+    playlistSelectionManager.clear()
+  }
+
+  val songsListState = rememberLazyListState()
+  val songsGridState = rememberLazyGridState()
+  val albumsListState = rememberLazyListState()
+  val albumsGridState = rememberLazyGridState()
+  val artistsListState = rememberLazyListState()
+  val artistsGridState = rememberLazyGridState()
+  val playlistsListState = rememberLazyListState()
+  val playlistsGridState = rememberLazyGridState()
+
+  val activeTab = visibleTabs.getOrNull(pagerState.currentPage) ?: MusicTab.SONGS
+  val activeListState = when (activeTab) {
+    MusicTab.SONGS -> songsListState
+    MusicTab.ALBUMS -> albumsListState
+    MusicTab.ARTISTS -> artistsListState
+    MusicTab.PLAYLISTS -> playlistsListState
+    MusicTab.FOLDERS -> null
+  }
+  val activeGridState = when (activeTab) {
+    MusicTab.SONGS -> songsGridState
+    MusicTab.ALBUMS -> albumsGridState
+    MusicTab.ARTISTS -> artistsGridState
+    MusicTab.PLAYLISTS -> playlistsGridState
+    MusicTab.FOLDERS -> null
+  }
+
+  if (activeListState != null) {
+    FabScrollHelper.trackScrollForFabVisibility(
+      listState = activeListState,
+      gridState = if (viewMode == MusicViewMode.GRID) activeGridState else null,
+      isFabVisible = isFabVisible,
+      expanded = isFabExpanded.value,
+      onExpandedChange = { isFabExpanded.value = it },
+    )
+  }
+
+  LaunchedEffect(pagerState) {
+    snapshotFlow { pagerState.isScrollInProgress }
+      .distinctUntilChanged()
+      .filter { it }
+      .collect {
+        if (isFabExpanded.value) isFabExpanded.value = false
+      }
+  }
+
+  app.gyrolet.mpvrx.ui.browser.NavigationBarSelectionEffect(
+    inSelectionMode = activeSelectionManager.isInSelectionMode,
+    onlyVideos = false,
+  )
+
+  BackHandler(enabled = isSearchActive || activeSelectionManager.isInSelectionMode || (isFabExpanded.value && !quickPlayFabDirect)) {
+    when {
+      isFabExpanded.value && !quickPlayFabDirect -> isFabExpanded.value = false
+      isSearchActive -> {
+        isSearchActive = false
+        musicViewModel.setSearchQuery("")
+      }
+      activeSelectionManager.isInSelectionMode -> activeSelectionManager.clear()
+    }
+  }
+
+  val totalCount = when (selectedTab) {
+    MusicTab.SONGS -> songs.size
+    MusicTab.ALBUMS -> albums.size
+    MusicTab.ARTISTS -> artists.size
+    MusicTab.PLAYLISTS -> playlists.size
+    MusicTab.FOLDERS -> 0
+  }
+
+  val bottomBarBackdrop = rememberBrowserBottomBarBackdrop()
+
+  Box(modifier = modifier.fillMaxSize()) {
+    Scaffold(
+      modifier = Modifier.fillMaxSize().captureLiquidGlassBackdrop(bottomBarBackdrop),
+      containerColor = app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor(),
+    topBar = {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .background(
+            if (app.gyrolet.mpvrx.ui.theme.LocalAppWallpaperActive.current) {
+              Color.Transparent
+            } else if (MaterialTheme.colorScheme.background == Color.Black) {
+              Color.Black
+            } else {
+              MaterialTheme.colorScheme.surfaceContainer
+            }
+          )
+      ) {
+        if (isSearchActive) {
+          InlineSearchBar(
+            query = searchQuery,
+            onQueryChange = musicViewModel::setSearchQuery,
+            onSearch = { },
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 16.dp, vertical = 8.dp),
+            inputFieldModifier = Modifier.focusRequester(searchFocusRequester),
+            placeholder = { Text(if (selectedTab == MusicTab.FOLDERS) "Search folders & songs..." else "Search songs, albums, artists...") },
+            leadingIcon = {
+              IconButton(onClick = {
+                isSearchActive = false
+                musicViewModel.setSearchQuery("")
+              }) {
+                Icon(imageVector = Icons.RoundedFilled.ArrowBack, contentDescription = "Back")
+              }
+            },
+            trailingIcon = {
+              if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { musicViewModel.setSearchQuery("") }) {
+                  Icon(imageVector = Icons.RoundedFilled.Close, contentDescription = "Clear search")
+                }
+              }
+            },
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+          )
+        } else {
+          Box {
+            BrowserTopBar(
+              title = stringResource(R.string.ui_music),
+              isInSelectionMode = activeSelectionManager.isInSelectionMode,
+              selectedCount = activeSelectionManager.selectedCount,
+              totalCount = totalCount,
+              onBackClick = null,
+              onCancelSelection = { activeSelectionManager.clear() },
+              onSortClick = { isSortMenuExpanded = true },
+              onSearchClick = { isSearchActive = true },
+              onSettingsClick = {
+                backStack.navigateTo(PreferencesScreen)
+              },
+              onSelectAll = { activeSelectionManager.selectAll() },
+              onInvertSelection = { activeSelectionManager.invertSelection() },
+              onDeselectAll = { activeSelectionManager.clear() },
+              onDeleteClick = null,
+              onShareClick = if (selectedTab == MusicTab.SONGS) {
+                {
+                  @Suppress("UNCHECKED_CAST")
+                  val selected = activeSelectionManager.getSelectedItems() as List<MusicSong>
+                  if (selected.isNotEmpty()) {
+                    MediaUtils.shareVideos(context, selected.map { it.toVideo() })
+                  }
+                }
+              } else null,
+              onPlayClick = {
+                val items = activeSelectionManager.getSelectedItems()
+                when (selectedTab) {
+                  MusicTab.SONGS -> {
+                    @Suppress("UNCHECKED_CAST")
+                    musicViewModel.playAllSongs(context, items as List<MusicSong>, shuffle = false)
+                  }
+                  MusicTab.ALBUMS -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val selAlbums = items as List<MusicAlbum>
+                    val albumSongs =
+                      selAlbums.flatMap { album ->
+                        songs.filter { song -> song.albumKey == album.id }.sortedByAlbumTrack()
+                      }
+                    musicViewModel.playAllSongs(context, albumSongs, shuffle = false)
+                  }
+                  MusicTab.ARTISTS -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val selArtists = items as List<MusicArtist>
+                    val artistSongs = songs.filter { s -> selArtists.any { ar -> s.artist.equals(ar.name, ignoreCase = true) } }
+                    musicViewModel.playAllSongs(context, artistSongs, shuffle = false)
+                  }
+                  MusicTab.PLAYLISTS -> { }
+                  MusicTab.FOLDERS -> { }
+                }
+              },
+              onBlacklistClick = {
+                val selectedItems = activeSelectionManager.getSelectedItems()
+                val selectedPaths = selectedItems.mapNotNull { item ->
+                  when (item) {
+                    is MusicSong -> java.io.File(item.path).parent
+                    else -> null
+                  }
+                }.toSet()
+                if (selectedPaths.isNotEmpty()) {
+                  foldersPreferences.addBlacklistedFolders(selectedPaths, app.gyrolet.mpvrx.preferences.BlacklistScope.AUDIO_ONLY)
+                  activeSelectionManager.clear()
+                }
+              },
+              onRenameClick = null,
+              isSingleSelection = activeSelectionManager.isSingleSelection,
+              onInfoClick = if (selectedTab == MusicTab.SONGS) showSongSelectionInfo else null,
+              titleTrailing = {
+                MusicSourceDropdown()
+              },
+            )
+          }
+        }
+
+        if (selectedTab == MusicTab.FOLDERS) {
+          FolderSortDialog(
+            isOpen = isSortMenuExpanded,
+            onDismiss = { isSortMenuExpanded = false },
+            sortType = folderSortType,
+            sortOrder = folderSortOrder,
+            onSortTypeChange = { browserPreferences.folderSortType.set(it) },
+            onSortOrderChange = { browserPreferences.folderSortOrder.set(it) },
+            embeddedAlbumView = true,
+          )
+        } else {
+          MusicSortDialog(
+            isOpen = isSortMenuExpanded,
+            onDismiss = { isSortMenuExpanded = false },
+            sortField = sortField,
+            sortOrder = sortOrder,
+            viewMode = viewMode,
+            onSortFieldChange = { musicViewModel.setSortField(it) },
+            onSortOrderChange = { musicViewModel.setSortOrder(it) },
+            onViewModeChange = { musicViewModel.setViewMode(it) },
+            availableFields = selectedTab.availableSortFields,
+          )
+        }
+
+        PrimaryScrollableTabRow(
+          selectedTabIndex = pagerState.currentPage.coerceIn(0, (visibleTabs.size - 1).coerceAtLeast(0)),
+          containerColor = Color.Transparent,
+          contentColor = MaterialTheme.colorScheme.primary,
+          edgePadding = 8.dp,
+          divider = {}
+        ) {
+          visibleTabs.forEachIndexed { index, tab ->
+            Tab(
+              selected = pagerState.currentPage == index,
+              onClick = {
+                 if (selectedTab != tab) navigationHaptics.selection(true)
+                 musicViewModel.setTab(tab)
+               },
+              text = {
+                Text(
+                  text = stringResource(tab.titleRes),
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Medium,
+                  maxLines = 1,
+                  softWrap = false,
+                  overflow = TextOverflow.Ellipsis
+                )
+              }
+            )
+          }
+        }
+        HorizontalDivider()
+      }
+    },
+    floatingActionButton = {
+      val isPlaylistsTab = visibleTabs.getOrNull(pagerState.currentPage) == MusicTab.PLAYLISTS
+      val isFoldersTab = visibleTabs.getOrNull(pagerState.currentPage) == MusicTab.FOLDERS
+      val isFabShouldBeVisible =
+        showQuickPlayFab && !activeSelectionManager.isInSelectionMode && isFabVisible.value && !MainScreen.getPermissionDeniedState()
+
+      if (isFoldersTab) {
+        // FolderListScreen.MediaStoreFolderListContent renders its own FAB, skip ours.
+      } else if (isPlaylistsTab) {
+        FloatingActionButtonMenu(
+          modifier = Modifier.padding(bottom = FabPlacement.scaffoldBottomPadding()),
+          expanded = false,
+          button = {
+            ToggleFloatingActionButton(
+              modifier =
+                Modifier.animateFloatingActionButton(
+                  visible = isFabShouldBeVisible,
+                  alignment = Alignment.BottomEnd,
+                ).focusableWhen(isFabShouldBeVisible),
+              checked = false,
+              onCheckedChange = { showCreatePlaylistDialog = true },
+            ) {
+              Icon(
+                imageVector = Icons.RoundedFilled.Add,
+                contentDescription = "New Playlist",
+              )
+            }
+          },
+        ) { }
+      } else if (songs.isNotEmpty()) {
+        FloatingActionButtonMenu(
+          modifier = Modifier.padding(bottom = FabPlacement.scaffoldBottomPadding()),
+          expanded = isFabExpanded.value && !quickPlayFabDirect,
+          button = {
+            TooltipBox(
+              positionProvider =
+                TooltipDefaults.rememberTooltipPositionProvider(
+                  if (isFabExpanded.value && !quickPlayFabDirect) TooltipAnchorPosition.Start else TooltipAnchorPosition.Above,
+                ),
+              tooltip = { PlainTooltip { Text(stringResource(R.string.ui_toggle_menu)) } },
+              state = rememberTooltipState(),
+            ) {
+              ToggleFloatingActionButton(
+                modifier =
+                  Modifier.animateFloatingActionButton(
+                    visible = isFabShouldBeVisible,
+                    alignment = Alignment.BottomEnd,
+                  ).focusableWhen(isFabShouldBeVisible),
+                checked = isFabExpanded.value && !quickPlayFabDirect,
+                onCheckedChange = {
+                  if (quickPlayFabDirect) {
+                    musicViewModel.playAllSongs(context, songs, shuffle = false)
+                  } else {
+                    isFabExpanded.value = !isFabExpanded.value
+                  }
+                },
+              ) {
+                val imageVector by remember {
+                  derivedStateOf {
+                    if (checkedProgress > 0.5f && !quickPlayFabDirect) Icons.RoundedFilled.Close else Icons.RoundedFilled.PlayArrow
+                  }
+                }
+                Icon(
+                  imageVector = imageVector,
+                  contentDescription = null,
+                  modifier = Modifier.animateIcon({ if (quickPlayFabDirect) 0f else checkedProgress }),
+                )
+              }
+            }
+          },
+        ) {
+          if (!quickPlayFabDirect) {
+            FloatingActionButtonMenuItem(
+              onClick = {
+                isFabExpanded.value = false
+                musicViewModel.playAllSongs(context, songs, shuffle = false)
+              },
+              icon = { Icon(Icons.RoundedFilled.PlayArrow, contentDescription = null) },
+              text = { Text("Play All Songs") },
+            )
+            FloatingActionButtonMenuItem(
+              onClick = {
+                isFabExpanded.value = false
+                musicViewModel.playAllSongs(context, songs, shuffle = true)
+              },
+              icon = { Icon(Icons.RoundedFilled.Shuffle, contentDescription = null) },
+              text = { Text("Shuffle Songs") },
+            )
+          }
+        }
+      }
+    },
+  ) { innerPadding ->
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(innerPadding)
+    ) {
+      PullRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { musicViewModel.refreshLibrary(context) },
+        modifier = Modifier.fillMaxSize()
+      ) {
+        // Playlists are not part of the condition: the Favorites playlist always exists, which kept
+        // the first scan from ever showing this and flashed "No songs found" instead.
+        if (isLoading && songs.isEmpty() && albums.isEmpty() && artists.isEmpty()) {
+          Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+          ) {
+            CircularProgressIndicator()
+          }
+        } else {
+          NavigationPager(
+            state = pagerState,
+            key = { page -> visibleTabs[page].name },
+            modifier = Modifier.fillMaxSize(),
+            beyondViewportPageCount = 1,
+            allowNestedSwipes = true,
+          ) { page ->
+            val activeTab = visibleTabs.getOrNull(page) ?: MusicTab.SONGS
+            when (activeTab) {
+              MusicTab.SONGS -> SongsTabContent(
+                songs = songs,
+                viewMode = viewMode,
+                recentlyPlayedFilePath = recentlyPlayedFilePath,
+                isPlaybackActive = isPlaybackActive,
+                coverArtSizeDp = coverArtSizeDp,
+                gridCoverArtSizeDp = gridCoverArtSizeDp,
+                onSongClick = { song ->
+                  if (songSelectionManager.isInSelectionMode) {
+                    songSelectionManager.toggleFromUser(song)
+                  } else {
+                    musicViewModel.playSong(context, song, songs)
+                  }
+                },
+                onSongLongClick = { song ->
+                  songSelectionManager.toggle(song)
+                },
+                selectionManager = songSelectionManager,
+                listState = songsListState,
+                gridState = songsGridState,
+                onSongsChanged = { musicViewModel.scanLibrary(context) },
+              )
+
+              MusicTab.ALBUMS -> AlbumsTabContent(
+                albums = albums,
+                viewMode = viewMode,
+                coverArtSizeDp = coverArtSizeDp,
+                gridCoverArtSizeDp = gridCoverArtSizeDp,
+                onAlbumClick = { album ->
+                  if (albumSelectionManager.isInSelectionMode) {
+                    albumSelectionManager.toggleFromUser(album)
+                  } else {
+                    musicViewModel.selectAlbum(album)
+                  }
+                },
+                onAlbumLongClick = { album ->
+                  albumSelectionManager.toggle(album)
+                },
+                selectionManager = albumSelectionManager,
+                listState = albumsListState,
+                gridState = albumsGridState,
+              )
+
+              MusicTab.ARTISTS -> ArtistsTabContent(
+                artists = artists,
+                viewMode = viewMode,
+                coverArtSizeDp = coverArtSizeDp,
+                gridCoverArtSizeDp = gridCoverArtSizeDp,
+                onArtistClick = { artist ->
+                  if (artistSelectionManager.isInSelectionMode) {
+                    artistSelectionManager.toggleFromUser(artist)
+                  } else {
+                    musicViewModel.selectArtist(artist)
+                  }
+                },
+                onArtistLongClick = { artist ->
+                  artistSelectionManager.toggle(artist)
+                },
+                selectionManager = artistSelectionManager,
+                listState = artistsListState,
+                gridState = artistsGridState,
+              )
+
+              MusicTab.PLAYLISTS -> PlaylistsTabContent(
+                playlists = playlists,
+                songs = songs,
+                viewMode = viewMode,
+                coverArtSizeDp = coverArtSizeDp.dp,
+                gridCoverArtSizeDp = gridCoverArtSizeDp,
+                onPlaylistClick = { playlist ->
+                  if (playlistSelectionManager.isInSelectionMode) {
+                    playlistSelectionManager.toggleFromUser(playlist)
+                  } else {
+                    backStack.navigateTo(PlaylistDetailScreen(playlistId = playlist.id))
+                  }
+                },
+                onPlaylistLongClick = { playlist ->
+                  playlistSelectionManager.toggle(playlist)
+                },
+                selectionManager = playlistSelectionManager,
+                listState = playlistsListState,
+                gridState = playlistsGridState,
+              )
+
+              // Reuse the exact same folder-browsing screen Home uses for videos,
+              // just scoped to audio (audioOnly = true).
+              MusicTab.FOLDERS -> FolderListScreen.MediaStoreFolderListContent(
+                audioOnly = true,
+                embedded = true,
+                searchQuery = searchQuery,
+              )
+            }
+          }
+        }
+      }
+
+        // Album Detail Sheet
+        selectedAlbum?.let { album ->
+          val albumSongs = remember(songs, album) {
+            songs.filter { it.albumKey == album.id }.sortedByAlbumTrack()
+          }
+          AlbumDetailSheet(
+            album = album,
+            songs = albumSongs,
+            recentlyPlayedFilePath = recentlyPlayedFilePath,
+            isPlaybackActive = isPlaybackActive,
+            onDismiss = { musicViewModel.selectAlbum(null) },
+            onSongClick = { song -> musicViewModel.playSong(context, song, albumSongs) },
+            onSongLongClick = { song -> selectedSongForOptions = song },
+            onPlayAlbum = { musicViewModel.playAllSongs(context, albumSongs, shuffle = false) }
+          )
+        }
+
+        // Artist Detail Sheet
+        selectedArtist?.let { artist ->
+          val artistSongs = remember(songs, artist) {
+            songs.filter { it.artist.equals(artist.name, ignoreCase = true) }
+          }
+          ArtistDetailSheet(
+            artist = artist,
+            songs = artistSongs,
+            recentlyPlayedFilePath = recentlyPlayedFilePath,
+            isPlaybackActive = isPlaybackActive,
+            onDismiss = { musicViewModel.selectArtist(null) },
+            onSongClick = { song -> musicViewModel.playSong(context, song, artistSongs) },
+            onSongLongClick = { song -> selectedSongForOptions = song },
+            onPlayArtist = { musicViewModel.playAllSongs(context, artistSongs, shuffle = false) }
+          )
+        }
+
+        // Create Playlist Dialog
+        if (showCreatePlaylistDialog) {
+          CreatePlaylistDialog(
+            onDismiss = { showCreatePlaylistDialog = false },
+            onCreate = { name ->
+              musicViewModel.createPlaylist(name)
+              showCreatePlaylistDialog = false
+            }
+          )
+        }
+
+        // Song Options Sheet
+        selectedSongForOptions?.let { song ->
+          ModalBottomSheet(
+            onDismissRequest = { selectedSongForOptions = null },
+            sheetState =
+              rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+              )
+          ) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                  modifier = Modifier
+                    .size(56.dp)
+                    .clip(AppShapeScale.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                  contentAlignment = Alignment.Center
+                ) {
+                  LocalAlbumArtImage(uri = song.albumArtUri, contentDescription = null, modifier = Modifier.fillMaxSize(), audioSong = song)
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(text = song.title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                  Text(text = "${song.artist} • ${song.album}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+              }
+
+              HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+              ListItem(
+                content = { Text("Play") },
+                leadingContent = { Icon(Icons.RoundedFilled.PlayArrow, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val target = song
+                  selectedSongForOptions = null
+                  musicViewModel.playSong(context, target, songs)
+                }
+              )
+              ListItem(
+                content = { Text("Add to Playlist") },
+                leadingContent = { Icon(Icons.RoundedFilled.PlaylistAdd, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val target = song
+                  selectedSongForOptions = null
+                  selectedVideosForAddToPlaylist = listOf(target.toVideo())
+                }
+              )
+              ListItem(
+                content = { Text("Share") },
+                leadingContent = { Icon(Icons.RoundedFilled.Share, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val target = song
+                  selectedSongForOptions = null
+                  MediaUtils.shareVideos(context, listOf(target.toVideo()))
+                }
+              )
+              ListItem(
+                content = { Text("Delete Song", color = MaterialTheme.colorScheme.error) },
+                leadingContent = { Icon(Icons.RoundedFilled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                modifier = Modifier.clickable {
+                  val target = song
+                  selectedSongForOptions = null
+                  selectedSongForDelete = target
+                }
+              )
+            }
+          }
+        }
+
+        // Single Song Delete Confirmation Dialog
+        selectedSongForDelete?.let { song ->
+          DeleteConfirmationDialog(
+            isOpen = true,
+            onDismiss = { selectedSongForDelete = null },
+            onConfirm = {
+              scope.launch {
+                musicViewModel.deleteSongs(context, listOf(song))
+                selectedSongForDelete = null
+              }
+            },
+            itemCount = 1,
+            itemType = "song",
+            itemNames = listOf(song.title),
+            itemPaths = listOf(song.uri.toString()),
+            totalSizeBytes = song.size.takeIf { it > 0L },
+          )
+        }
+
+        // Multi Selection Delete Confirmation Dialog
+        if (showDeleteSelectedDialog) {
+          val count = activeSelectionManager.selectedCount
+          val itemType = if (selectedTab == MusicTab.SONGS) "song" else "playlist"
+          val itemNames = when (selectedTab) {
+            MusicTab.SONGS -> {
+              @Suppress("UNCHECKED_CAST")
+              (activeSelectionManager.getSelectedItems() as List<MusicSong>).map { it.title }
+            }
+            MusicTab.PLAYLISTS -> {
+              @Suppress("UNCHECKED_CAST")
+              (activeSelectionManager.getSelectedItems() as List<PlaylistEntity>).map { it.name }
+            }
+            else -> emptyList()
+          }
+          DeleteConfirmationDialog(
+            isOpen = true,
+            onDismiss = { showDeleteSelectedDialog = false },
+            onConfirm = {
+              scope.launch {
+                activeSelectionManager.deleteSelected()
+                showDeleteSelectedDialog = false
+              }
+            },
+            itemCount = count,
+            itemType = itemType,
+            itemNames = itemNames,
+            itemPaths = if (selectedTab == MusicTab.SONGS) {
+              songSelectionManager.getSelectedItems().map { it.uri.toString() }
+            } else emptyList(),
+          )
+        }
+
+        // Album Options Sheet
+        selectedAlbumForOptions?.let { album ->
+          val albumSongs = remember(songs, album) {
+            songs.filter { it.albumKey == album.id }.sortedByAlbumTrack()
+          }
+          ModalBottomSheet(
+            onDismissRequest = { selectedAlbumForOptions = null },
+            sheetState =
+              rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+              )
+          ) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                  modifier = Modifier
+                    .size(56.dp)
+                    .clip(AppShapeScale.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                  contentAlignment = Alignment.Center
+                ) {
+                  LocalAlbumArtImage(uri = album.albumArtUri, contentDescription = null, modifier = Modifier.fillMaxSize(), audioSong = album.artworkSong)
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(text = album.title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                  Text(text = "${album.artist} • ${albumSongs.size} tracks", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+              }
+
+              HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+              ListItem(
+                content = { Text("View Album Tracks") },
+                leadingContent = { Icon(Icons.RoundedFilled.Audiotrack, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val target = album
+                  selectedAlbumForOptions = null
+                  musicViewModel.selectAlbum(target)
+                }
+              )
+              ListItem(
+                content = { Text("Play Album") },
+                leadingContent = { Icon(Icons.RoundedFilled.PlayArrow, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val list = albumSongs
+                  selectedAlbumForOptions = null
+                  musicViewModel.playAllSongs(context, list, shuffle = false)
+                }
+              )
+              ListItem(
+                content = { Text("Shuffle Album") },
+                leadingContent = { Icon(Icons.RoundedFilled.Shuffle, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val list = albumSongs
+                  selectedAlbumForOptions = null
+                  musicViewModel.playAllSongs(context, list, shuffle = true)
+                }
+              )
+              ListItem(
+                content = { Text("Add Album to Playlist") },
+                leadingContent = { Icon(Icons.RoundedFilled.PlaylistAdd, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val list = albumSongs
+                  selectedAlbumForOptions = null
+                  selectedVideosForAddToPlaylist = list.map { it.toVideo() }
+                }
+              )
+            }
+          }
+        }
+
+        // Artist Options Sheet
+        selectedArtistForOptions?.let { artist ->
+          val artistSongs = remember(songs, artist) {
+            songs.filter { it.artist.equals(artist.name, ignoreCase = true) }
+          }
+          ModalBottomSheet(
+            onDismissRequest = { selectedArtistForOptions = null },
+            sheetState =
+              rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+              )
+          ) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                ArtistAvatarImage(artistName = artist.name, modifier = Modifier.size(56.dp), iconSize = 28.dp)
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(text = artist.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                  Text(text = "${artistSongs.size} songs", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+              }
+
+              HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+              ListItem(
+                content = { Text("View Artist Songs") },
+                leadingContent = { Icon(Icons.RoundedFilled.Person, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val target = artist
+                  selectedArtistForOptions = null
+                  musicViewModel.selectArtist(target)
+                }
+              )
+              ListItem(
+                content = { Text("Play Artist Songs") },
+                leadingContent = { Icon(Icons.RoundedFilled.PlayArrow, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val list = artistSongs
+                  selectedArtistForOptions = null
+                  musicViewModel.playAllSongs(context, list, shuffle = false)
+                }
+              )
+              ListItem(
+                content = { Text("Shuffle Artist Songs") },
+                leadingContent = { Icon(Icons.RoundedFilled.Shuffle, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val list = artistSongs
+                  selectedArtistForOptions = null
+                  musicViewModel.playAllSongs(context, list, shuffle = true)
+                }
+              )
+              ListItem(
+                content = { Text("Add Artist Songs to Playlist") },
+                leadingContent = { Icon(Icons.RoundedFilled.PlaylistAdd, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val list = artistSongs
+                  selectedArtistForOptions = null
+                  selectedVideosForAddToPlaylist = list.map { it.toVideo() }
+                }
+              )
+            }
+          }
+        }
+
+        // Playlist Options Sheet
+        selectedPlaylistForOptions?.let { playlist ->
+          ModalBottomSheet(
+            onDismissRequest = { selectedPlaylistForOptions = null },
+            sheetState =
+              rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+              )
+          ) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.RoundedFilled.PlaylistPlay, contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(text = playlist.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+              }
+
+              HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+              ListItem(
+                content = { Text("Open Playlist") },
+                leadingContent = { Icon(Icons.RoundedFilled.PlaylistPlay, contentDescription = null) },
+                modifier = Modifier.clickable {
+                  val target = playlist
+                  selectedPlaylistForOptions = null
+                  backStack.navigateTo(PlaylistDetailScreen(playlistId = target.id))
+                }
+              )
+              if (!playlist.name.equals(PlaylistRepository.FAVORITES_PLAYLIST_NAME, ignoreCase = true)) {
+                ListItem(
+                  content = { Text("Delete Playlist", color = MaterialTheme.colorScheme.error) },
+                  leadingContent = { Icon(Icons.RoundedFilled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                  modifier = Modifier.clickable {
+                    val target = playlist
+                    selectedPlaylistForOptions = null
+                    showDeletePlaylistDialog = target
+                  }
+                )
+              }
+            }
+          }
+        }
+
+        // Add To Playlist Dialog
+        selectedVideosForAddToPlaylist?.let { videos ->
+          AddToPlaylistDialog(
+            isOpen = true,
+            candidates = videos.toPlaylistCandidates(),
+            onDismiss = { selectedVideosForAddToPlaylist = null },
+            onSuccess = { selectedVideosForAddToPlaylist = null }
+          )
+        }
+
+        // Delete Playlist Dialog
+        showDeletePlaylistDialog?.let { playlist ->
+          DeleteConfirmationDialog(
+            isOpen = true,
+            onDismiss = { showDeletePlaylistDialog = null },
+            onConfirm = {
+              musicViewModel.deletePlaylist(playlist)
+              showDeletePlaylistDialog = null
+            },
+            itemCount = 1,
+            itemType = "playlist",
+            itemNames = listOf(playlist.name)
+          )
+        }
+
+        FabScrollHelper.FabScrim(
+          visible = isFabExpanded.value && !quickPlayFabDirect,
+          onDismiss = { isFabExpanded.value = false },
+        )
+      }
+    }
+
+    AnimatedVisibility(
+      visible = activeSelectionManager.isInSelectionMode,
+      enter = slideInVertically(
+        animationSpec = spring(
+          dampingRatio = AppMotion.Spatial.Expressive.dampingRatio,
+          stiffness = AppMotion.Spatial.Expressive.stiffness,
+        ),
+        initialOffsetY = { it },
+      ),
+      exit = slideOutVertically(
+        animationSpec = spring(
+          dampingRatio = AppMotion.Spatial.Standard.dampingRatio,
+          stiffness = AppMotion.Spatial.Standard.stiffness,
+        ),
+        targetOffsetY = { it },
+      ),
+      modifier = Modifier.align(Alignment.BottomCenter),
+    ) {
+      BrowserBottomBar(
+        backdrop = bottomBarBackdrop,
+        isSelectionMode = activeSelectionManager.isInSelectionMode,
+        onCopyClick = { },
+        onMoveClick = { },
+        onRenameClick = { },
+        onDeleteClick = { showDeleteSelectedDialog = true },
+        onAddToPlaylistClick = {
+          val videosToAdd = selectedMusicVideos()
+          if (videosToAdd.isNotEmpty()) {
+            selectedVideosForAddToPlaylist = videosToAdd
+          }
+        },
+        onPlayNextClick =
+          if (selectedTab != MusicTab.PLAYLISTS && selectedTab != MusicTab.FOLDERS) {
+            {
+              if (addVideosToPlaybackQueue(context, selectedMusicVideos(), QueueInsertion.PlayNext)) {
+                activeSelectionManager.clear()
+              }
+            }
+          } else {
+            null
+          },
+        onAddToQueueClick =
+          if (selectedTab != MusicTab.PLAYLISTS && selectedTab != MusicTab.FOLDERS) {
+            {
+              if (addVideosToPlaybackQueue(context, selectedMusicVideos(), QueueInsertion.AddToEnd)) {
+                activeSelectionManager.clear()
+              }
+            }
+          } else {
+            null
+          },
+        showCopy = false,
+        showMove = false,
+        showRename = false,
+        showDelete = selectedTab == MusicTab.SONGS || selectedTab == MusicTab.PLAYLISTS,
+        showAddToPlaylist = selectedTab != MusicTab.PLAYLISTS && selectedTab != MusicTab.FOLDERS,
+        modifier = Modifier.padding(bottom = 0.dp)
+      )
+    }
+  }
+}
+
+@Composable
+fun LocalAlbumArtImage(
+  uri: Uri?,
+  contentDescription: String?,
+  modifier: Modifier = Modifier,
+  audioSong: MusicSong? = null,
+) {
+  val thumbnailRepository = koinInject<app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository>()
+  val revision by thumbnailRepository.cacheRevision.collectAsState()
+  val generator by koinInject<BrowserPreferences>().thumbnailGenerator.collectAsState()
+  val video = remember(audioSong) { audioSong?.toVideo() }
+  val density = androidx.compose.ui.platform.LocalDensity.current
+  BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
+    val widthPx = with(density) { if (maxWidth.value.isFinite()) maxWidth.roundToPx().coerceAtLeast(1) else 256 }
+    val heightPx = with(density) { if (maxHeight.value.isFinite()) maxHeight.roundToPx().coerceAtLeast(1) else 256 }
+    var retainedBitmap by remember(video, uri, generator, revision) {
+      mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+    }
+    var bitmap by remember(video, uri, widthPx, heightPx, generator, revision) {
+      mutableStateOf(video?.let { thumbnailRepository.peekThumbnailFromMemory(it, widthPx, heightPx) }?.asImageBitmap() ?: retainedBitmap)
+    }
+    LaunchedEffect(video, uri, widthPx, heightPx, generator, revision) {
+      val loaded = if (video != null) {
+        thumbnailRepository.getThumbnail(video, widthPx, heightPx)
+      } else {
+        thumbnailRepository.getArtwork(uri?.toString(), widthPx = widthPx, heightPx = heightPx)
+      }
+      bitmap = loaded?.asImageBitmap()
+      retainedBitmap = bitmap
+    }
+
+    val loaded = bitmap
+    if (loaded != null) {
+      Image(
+        bitmap = loaded,
+        contentDescription = contentDescription,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize(),
+      )
+    } else {
+      Icon(
+        imageVector = Icons.RoundedFilled.Audiotrack,
+        contentDescription = contentDescription,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(24.dp),
+      )
+    }
+  }
+}
+
+@Composable
+private fun ArtistAvatarImage(
+  artistName: String,
+  modifier: Modifier = Modifier,
+  iconSize: Dp? = null,
+) {
+  val client = koinInject<OkHttpClient>()
+  var imageUrl by remember(artistName) { mutableStateOf<String?>(null) }
+
+  LaunchedEffect(artistName) {
+    imageUrl = ArtistImageRepository.getArtistImageUrl(client, artistName)
+  }
+
+  val url = imageUrl
+  BoxWithConstraints(
+    modifier = modifier
+      .clip(CircleShape)
+      .background(MaterialTheme.colorScheme.primaryContainer),
+    contentAlignment = Alignment.Center
+  ) {
+    if (!url.isNullOrBlank()) {
+      RemoteImage(
+        maxDimensionPx = with(androidx.compose.ui.platform.LocalDensity.current) { maxWidth.roundToPx() * 2 },
+        url = url,
+        contentDescription = artistName,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize()
+      )
+    } else {
+      val dynamicIconSize = iconSize ?: (maxWidth * 0.55f)
+      Icon(
+        imageVector = Icons.RoundedFilled.Person,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+        modifier = Modifier.size(dynamicIconSize)
+      )
+    }
+  }
+}
+
+@Composable
+private fun MusicTabScrollBar(
+  viewMode: MusicViewMode,
+  listState: LazyListState,
+  gridState: LazyGridState,
+  bottomPadding: Dp,
+  dragLabelProvider: (Int) -> String?,
+  modifier: Modifier = Modifier,
+) {
+  val canScroll by remember(viewMode, listState, gridState) {
+    derivedStateOf {
+      if (viewMode == MusicViewMode.GRID) {
+        gridState.canScrollBackward || gridState.canScrollForward
+      } else {
+        listState.canScrollBackward || listState.canScrollForward
+      }
+    }
+  }
+  if (!canScroll) return
+
+  ExpressiveScrollBar(
+    listState = listState.takeUnless { viewMode == MusicViewMode.GRID },
+    gridState = gridState.takeIf { viewMode == MusicViewMode.GRID },
+    dragLabelProvider = dragLabelProvider,
+    modifier = modifier.padding(end = 2.dp, top = 6.dp, bottom = bottomPadding + 6.dp),
+  )
+}
+
+@Composable
+private fun SongsTabContent(
+  songs: List<MusicSong>,
+  viewMode: MusicViewMode,
+  recentlyPlayedFilePath: String?,
+  isPlaybackActive: Boolean = false,
+  coverArtSizeDp: Int = 48,
+  gridCoverArtSizeDp: Int = 145,
+  onSongClick: (MusicSong) -> Unit,
+  onSongLongClick: (MusicSong) -> Unit,
+  selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<MusicSong, Long>,
+  listState: LazyListState = rememberLazyListState(),
+  gridState: LazyGridState = rememberLazyGridState(),
+  onSongsChanged: () -> Unit,
+) {
+  if (songs.isEmpty()) {
+    EmptyMusicState(text = "No songs found")
+    return
+  }
+
+  // The recently-played row is written once when a song is tapped and never advances with the
+  // queue, so follow the live session item and keep it only as a fallback.
+  val sessionState by PlaybackSession.state.collectAsStateWithLifecycle()
+  val playingUri = sessionState.currentItem?.originalUri
+
+  fun MusicSong.isNowPlaying(): Boolean =
+    when {
+      !isPlaybackActive -> false
+      playingUri != null -> uri.toString() == playingUri || path == playingUri
+      else -> recentlyPlayedFilePath != null && path == recentlyPlayedFilePath
+    }
+
+  val gridColumns by remember(gridState) {
+    derivedStateOf { gridState.layoutInfo.maxSpan.coerceAtLeast(1) }
+  }
+  val navBarHeight = LocalNavigationBarHeight.current
+  Box(modifier = Modifier.fillMaxSize()) {
+    if (viewMode == MusicViewMode.GRID) {
+      LazyVerticalGrid(
+        state = gridState,
+        columns = GridCells.Adaptive(minSize = gridCoverArtSizeDp.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = navBarHeight + 8.dp),
+        verticalArrangement = Arrangement.spacedBy(MediaSelectionGridGap),
+        horizontalArrangement = Arrangement.spacedBy(MediaSelectionGridGap)
+      ) {
+        items(count = songs.size, key = { index -> songs[index].id }) { index ->
+          val song = songs[index]
+          SongGridCard(
+            song = song,
+            modifier = mediaItemMotion(),
+            isSelected = selectionManager.isSelected(song),
+            selectionNeighbors = mediaSelectionNeighbors(index, songs.size, gridColumns) { neighbor ->
+              selectionManager.isSelected(songs[neighbor])
+            },
+            isPlaying = song.isNowPlaying(),
+            onClick = { onSongClick(song) },
+            onLongClick = { onSongLongClick(song) }
+          )
+        }
+      }
+    } else {
+      // Built off the main thread: converting a whole library in composition stalled a frame each
+      // time the list was published, which happens twice during a scan.
+      val swipeVideos by produceState(initialValue = emptyList<Video>(), songs) {
+        value = withContext(Dispatchers.Default) { songs.map { it.toVideo() } }
+      }
+      val swipePlaybackInfo = rememberSwipePlaybackInfo(swipeVideos)
+      val swipeActions = rememberVideoSwipeActions(audioOnly = true, onChanged = onSongsChanged)
+      LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 8.dp, top = 4.dp, end = 8.dp, bottom = navBarHeight + 8.dp),
+        verticalArrangement = Arrangement.spacedBy(MediaSelectionListGap)
+      ) {
+        items(count = songs.size, key = { index -> songs[index].id }) { index ->
+          val song = songs[index]
+          val video = remember(song) { song.toVideo() }
+          val isWatched = swipePlaybackInfo[song.path]?.isWatched ?: false
+          SongListItem(
+            song = song,
+            modifier = mediaItemMotion(),
+            isSelected = selectionManager.isSelected(song),
+            selectionNeighbors = mediaSelectionNeighbors(index, songs.size, 1) { neighbor ->
+              selectionManager.isSelected(songs[neighbor])
+            },
+            isPlaying = song.isNowPlaying(),
+            coverArtSizeDp = coverArtSizeDp,
+            onClick = { onSongClick(song) },
+            onLongClick = { onSongLongClick(song) },
+            isWatched = isWatched,
+            onSwipeAction = if (selectionManager.isInSelectionMode || !song.path.startsWith('/')) null else {
+              action -> swipeActions.video(video, isWatched, action)
+            },
+          )
+        }
+      }
+    }
+
+    MusicTabScrollBar(
+      viewMode = viewMode,
+      listState = listState,
+      gridState = gridState,
+      bottomPadding = navBarHeight,
+      dragLabelProvider = { index -> fastScrollGlyph(songs.getOrNull(index)?.title) },
+      modifier = Modifier.align(Alignment.CenterEnd),
+    )
+  }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SongGridCard(
+  song: MusicSong,
+  isSelected: Boolean = false,
+  selectionNeighbors: MediaSelectionNeighbors = MediaSelectionNeighbors(),
+  isPlaying: Boolean = false,
+  onClick: () -> Unit,
+  onLongClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val selectedShape = rememberMediaSelectionShape(
+    selected = isSelected,
+    grid = true,
+    neighbors = selectionNeighbors,
+  )
+  val selectionColor = animatedSelectionColor(
+    selected = isSelected,
+    unselectedColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (isPlaying) 0.35f else 0f),
+  )
+  Card(
+    modifier = modifier
+      .fillMaxWidth()
+      .clip(selectedShape)
+      .tvFocusHighlight(selectedShape, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
+      .semantics { selected = isSelected }
+      .mediaCardClickable(onClick = onClick, onLongClick = onLongClick),
+    shape = selectedShape,
+    colors = CardDefaults.cardColors(
+      containerColor = selectionColor
+    )
+  ) {
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(2.dp)
+    ) {
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .aspectRatio(1f)
+          .clip(AppShapeScale.medium)
+          .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+      ) {
+        LocalAlbumArtImage(
+          uri = song.albumArtUri,
+          audioSong = song,
+          contentDescription = null,
+          modifier = Modifier.fillMaxSize()
+        )
+        if (isPlaying && !isSelected) {
+          val paused by PlaybackSession.propBoolean["pause"].collectAsState()
+          val isPlaybackActive = paused != true
+          Box(
+            modifier = Modifier
+              .fillMaxSize()
+              .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
+            contentAlignment = Alignment.Center
+          ) {
+            MiniAudioVisualizer(
+              isPlaying = isPlaybackActive,
+              color = Color.White,
+              modifier = Modifier.size(width = 28.dp, height = 24.dp),
+              barCount = 4,
+            )
+          }
+        }
+        SelectionIndicator(isSelected, Modifier.align(Alignment.TopEnd).padding(6.dp))
+      }
+
+      Spacer(modifier = Modifier.height(4.dp))
+
+      Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.Start
+      ) {
+        Text(
+          text = song.title,
+          style = MaterialTheme.typography.bodyLarge.copy(
+            fontWeight = if (isPlaying) FontWeight.ExtraBold else FontWeight.Bold
+          ),
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+          textAlign = TextAlign.Start,
+          modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+          text = song.artist,
+          style = MaterialTheme.typography.bodySmall,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          color = if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+          textAlign = TextAlign.Start,
+          modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+          text = DateUtils.formatElapsedTime(song.durationMs / 1000),
+          style = MaterialTheme.typography.labelSmall,
+          color = MaterialTheme.colorScheme.primary,
+          textAlign = TextAlign.Start,
+          modifier = Modifier.fillMaxWidth()
+        )
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SongListItem(
+  song: MusicSong,
+  isSelected: Boolean = false,
+  selectionNeighbors: MediaSelectionNeighbors = MediaSelectionNeighbors(),
+  isPlaying: Boolean = false,
+  coverArtSizeDp: Int = 48,
+  onClick: () -> Unit,
+  onLongClick: (() -> Unit)? = null,
+  isWatched: Boolean? = null,
+  onSwipeAction: ((VideoSwipeAction) -> Unit)? = null,
+  modifier: Modifier = Modifier,
+) {
+  SharedMusicTrackListItem(
+    title = song.title,
+    modifier = modifier,
+    subtitle = "${song.artist} • ${song.album}",
+    albumArtUri = song.albumArtUri,
+    audioSong = song,
+    durationSeconds = song.durationMs / 1000,
+    isPlaying = isPlaying,
+    isSelected = isSelected,
+    selectionNeighbors = selectionNeighbors,
+    coverArtSizeDp = coverArtSizeDp,
+    onClick = onClick,
+    onLongClick = onLongClick,
+    swipeIdentity = song.path,
+    isWatched = isWatched,
+    onSwipeAction = onSwipeAction,
+  )
+}
+
+@Composable
+private fun AlbumsTabContent(
+  albums: List<MusicAlbum>,
+  viewMode: MusicViewMode,
+  coverArtSizeDp: Int = 48,
+  gridCoverArtSizeDp: Int = 145,
+  onAlbumClick: (MusicAlbum) -> Unit,
+  onAlbumLongClick: (MusicAlbum) -> Unit,
+  selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<MusicAlbum, Long>,
+  listState: LazyListState = rememberLazyListState(),
+  gridState: LazyGridState = rememberLazyGridState(),
+) {
+  if (albums.isEmpty()) {
+    EmptyMusicState(text = "No albums found")
+    return
+  }
+
+  val gridColumns by remember(gridState) {
+    derivedStateOf { gridState.layoutInfo.maxSpan.coerceAtLeast(1) }
+  }
+  val navBarHeight = LocalNavigationBarHeight.current
+  Box(modifier = Modifier.fillMaxSize()) {
+    if (viewMode == MusicViewMode.GRID) {
+      LazyVerticalGrid(
+        state = gridState,
+        columns = GridCells.Adaptive(minSize = gridCoverArtSizeDp.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = navBarHeight + 8.dp),
+        verticalArrangement = Arrangement.spacedBy(MediaSelectionGridGap),
+        horizontalArrangement = Arrangement.spacedBy(MediaSelectionGridGap)
+      ) {
+        items(count = albums.size, key = { index -> albums[index].id }) { index ->
+          val album = albums[index]
+          AlbumGridCard(
+            album = album,
+            modifier = mediaItemMotion(),
+            isSelected = selectionManager.isSelected(album),
+            selectionNeighbors = mediaSelectionNeighbors(index, albums.size, gridColumns) { neighbor ->
+              selectionManager.isSelected(albums[neighbor])
+            },
+            onClick = { onAlbumClick(album) },
+            onLongClick = { onAlbumLongClick(album) }
+          )
+        }
+      }
+    } else {
+      LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 8.dp, top = 4.dp, end = 8.dp, bottom = navBarHeight + 8.dp),
+        verticalArrangement = Arrangement.spacedBy(MediaSelectionListGap)
+      ) {
+        items(count = albums.size, key = { index -> albums[index].id }) { index ->
+          val album = albums[index]
+          AlbumListCard(
+            album = album,
+            modifier = mediaItemMotion(),
+            isSelected = selectionManager.isSelected(album),
+            selectionNeighbors = mediaSelectionNeighbors(index, albums.size, 1) { neighbor ->
+              selectionManager.isSelected(albums[neighbor])
+            },
+            coverArtSizeDp = coverArtSizeDp,
+            onClick = { onAlbumClick(album) },
+            onLongClick = { onAlbumLongClick(album) }
+          )
+        }
+      }
+    }
+
+    MusicTabScrollBar(
+      viewMode = viewMode,
+      listState = listState,
+      gridState = gridState,
+      bottomPadding = navBarHeight,
+      dragLabelProvider = { index -> fastScrollGlyph(albums.getOrNull(index)?.title) },
+      modifier = Modifier.align(Alignment.CenterEnd),
+    )
+  }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AlbumGridCard(
+  album: MusicAlbum,
+  isSelected: Boolean = false,
+  selectionNeighbors: MediaSelectionNeighbors = MediaSelectionNeighbors(),
+  onClick: () -> Unit,
+  onLongClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val selectedShape = rememberMediaSelectionShape(
+    selected = isSelected,
+    grid = true,
+    neighbors = selectionNeighbors,
+  )
+  Card(
+    modifier = modifier
+      .fillMaxWidth()
+      .clip(selectedShape)
+      .tvFocusHighlight(selectedShape, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
+      .semantics { selected = isSelected }
+      .mediaCardClickable(onClick = onClick, onLongClick = onLongClick),
+    shape = selectedShape,
+    colors = CardDefaults.cardColors(
+      containerColor = animatedSelectionColor(isSelected)
+    )
+  ) {
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(2.dp)
+    ) {
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .aspectRatio(1f)
+          .clip(AppShapeScale.medium)
+          .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+      ) {
+        LocalAlbumArtImage(
+          uri = album.albumArtUri,
+          audioSong = album.artworkSong,
+          contentDescription = null,
+          modifier = Modifier.fillMaxSize()
+        )
+        SelectionIndicator(isSelected, Modifier.align(Alignment.TopEnd).padding(6.dp))
+      }
+
+      Spacer(modifier = Modifier.height(4.dp))
+
+      Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.Start
+      ) {
+        Text(
+          text = album.title,
+          style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          color = MaterialTheme.colorScheme.onSurface,
+          textAlign = TextAlign.Start,
+          modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+          text = album.artist,
+          style = MaterialTheme.typography.bodySmall,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          textAlign = TextAlign.Start,
+          modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+          text = "${album.songCount} songs",
+          style = MaterialTheme.typography.labelSmall,
+          color = MaterialTheme.colorScheme.primary,
+          textAlign = TextAlign.Start,
+          modifier = Modifier.fillMaxWidth()
+        )
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AlbumListCard(
+  album: MusicAlbum,
+  isSelected: Boolean = false,
+  selectionNeighbors: MediaSelectionNeighbors = MediaSelectionNeighbors(),
+  coverArtSizeDp: Int = 48,
+  onClick: () -> Unit,
+  onLongClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val selectedShape = rememberMediaSelectionShape(
+    selected = isSelected,
+    grid = false,
+    neighbors = selectionNeighbors,
+  )
+  Surface(
+    modifier = modifier
+      .fillMaxWidth()
+      .padding(horizontal = 0.dp)
+      .clip(selectedShape)
+      .tvFocusHighlight(selectedShape, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
+      .semantics { selected = isSelected }
+      .mediaCardClickable(onClick = onClick, onLongClick = onLongClick),
+    shape = selectedShape,
+    color = animatedSelectionColor(isSelected)
+  ) {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 12.dp, vertical = 8.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Box(
+        modifier = Modifier
+          .size(coverArtSizeDp.dp)
+          .clip(AppShapeScale.medium)
+          .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+      ) {
+        LocalAlbumArtImage(
+          uri = album.albumArtUri,
+          audioSong = album.artworkSong,
+          contentDescription = null,
+          modifier = Modifier.fillMaxSize()
+        )
+        SelectionIndicator(isSelected, Modifier.align(Alignment.TopEnd).padding(4.dp))
+      }
+
+      Spacer(modifier = Modifier.width(14.dp))
+
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = album.title,
+          style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+          text = album.artist,
+          style = MaterialTheme.typography.bodySmall,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+      }
+
+      Text(
+        text = "${album.songCount} songs",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary
+      )
+    }
+  }
+}
+
+@Composable
+private fun ArtistsTabContent(
+  artists: List<MusicArtist>,
+  viewMode: MusicViewMode,
+  coverArtSizeDp: Int = 48,
+  gridCoverArtSizeDp: Int = 145,
+  onArtistClick: (MusicArtist) -> Unit,
+  onArtistLongClick: (MusicArtist) -> Unit,
+  selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<MusicArtist, Long>,
+  listState: LazyListState = rememberLazyListState(),
+  gridState: LazyGridState = rememberLazyGridState(),
+) {
+  if (artists.isEmpty()) {
+    EmptyMusicState(text = "No artists found")
+    return
+  }
+
+  val gridColumns by remember(gridState) {
+    derivedStateOf { gridState.layoutInfo.maxSpan.coerceAtLeast(1) }
+  }
+  val navBarHeight = LocalNavigationBarHeight.current
+  Box(modifier = Modifier.fillMaxSize()) {
+    if (viewMode == MusicViewMode.GRID) {
+      LazyVerticalGrid(
+        state = gridState,
+        columns = GridCells.Adaptive(minSize = (gridCoverArtSizeDp * 1.1f).toInt().dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = navBarHeight + 8.dp),
+        verticalArrangement = Arrangement.spacedBy(MediaSelectionGridGap),
+        horizontalArrangement = Arrangement.spacedBy(MediaSelectionGridGap)
+      ) {
+        items(count = artists.size, key = { index -> artists[index].id }) { index ->
+          val artist = artists[index]
+          ArtistGridCard(
+            artist = artist,
+            modifier = mediaItemMotion(),
+            isSelected = selectionManager.isSelected(artist),
+            selectionNeighbors = mediaSelectionNeighbors(index, artists.size, gridColumns) { neighbor ->
+              selectionManager.isSelected(artists[neighbor])
+            },
+            onClick = { onArtistClick(artist) },
+            onLongClick = { onArtistLongClick(artist) }
+          )
+        }
+      }
+    } else {
+      LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 8.dp, top = 4.dp, end = 8.dp, bottom = navBarHeight + 8.dp),
+        verticalArrangement = Arrangement.spacedBy(MediaSelectionListGap)
+      ) {
+        items(count = artists.size, key = { index -> artists[index].id }) { index ->
+          val artist = artists[index]
+          ArtistListCard(
+            artist = artist,
+            modifier = mediaItemMotion(),
+            isSelected = selectionManager.isSelected(artist),
+            selectionNeighbors = mediaSelectionNeighbors(index, artists.size, 1) { neighbor ->
+              selectionManager.isSelected(artists[neighbor])
+            },
+            coverArtSizeDp = coverArtSizeDp,
+            onClick = { onArtistClick(artist) },
+            onLongClick = { onArtistLongClick(artist) }
+          )
+        }
+      }
+    }
+
+    MusicTabScrollBar(
+      viewMode = viewMode,
+      listState = listState,
+      gridState = gridState,
+      bottomPadding = navBarHeight,
+      dragLabelProvider = { index -> fastScrollGlyph(artists.getOrNull(index)?.name) },
+      modifier = Modifier.align(Alignment.CenterEnd),
+    )
+  }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ArtistGridCard(
+  artist: MusicArtist,
+  isSelected: Boolean = false,
+  selectionNeighbors: MediaSelectionNeighbors = MediaSelectionNeighbors(),
+  onClick: () -> Unit,
+  onLongClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val selectedShape = rememberMediaSelectionShape(
+    selected = isSelected,
+    grid = true,
+    neighbors = selectionNeighbors,
+  )
+  Card(
+    modifier = modifier
+      .fillMaxWidth()
+      .clip(selectedShape)
+      .tvFocusHighlight(selectedShape, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
+      .semantics { selected = isSelected }
+      .mediaCardClickable(onClick = onClick, onLongClick = onLongClick),
+    shape = selectedShape,
+    colors = CardDefaults.cardColors(
+      containerColor = animatedSelectionColor(isSelected)
+    )
+  ) {
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(4.dp),
+      horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+      Box(
+        modifier = Modifier.size(132.dp),
+        contentAlignment = Alignment.Center
+      ) {
+        ArtistAvatarImage(
+          artistName = artist.name,
+          modifier = Modifier.fillMaxSize(),
+          iconSize = 60.dp
+        )
+        SelectionIndicator(isSelected, Modifier.align(Alignment.TopEnd).padding(6.dp))
+      }
+
+      Spacer(modifier = Modifier.height(4.dp))
+
+      Text(
+        text = artist.name,
+        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.fillMaxWidth()
+      )
+      Text(
+        text = "${artist.songCount} songs",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth()
+      )
+    }
+  }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ArtistListCard(
+  artist: MusicArtist,
+  isSelected: Boolean = false,
+  selectionNeighbors: MediaSelectionNeighbors = MediaSelectionNeighbors(),
+  coverArtSizeDp: Int = 48,
+  onClick: () -> Unit,
+  onLongClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val selectedShape = rememberMediaSelectionShape(
+    selected = isSelected,
+    grid = false,
+    neighbors = selectionNeighbors,
+  )
+  Surface(
+    modifier = modifier
+      .fillMaxWidth()
+      .padding(horizontal = 0.dp)
+      .clip(selectedShape)
+      .tvFocusHighlight(selectedShape, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
+      .semantics { selected = isSelected }
+      .mediaCardClickable(onClick = onClick, onLongClick = onLongClick),
+    shape = selectedShape,
+    color = animatedSelectionColor(isSelected)
+  ) {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 12.dp, vertical = 8.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      val avatarSize = (coverArtSizeDp * 1.3f).toInt().coerceAtLeast(48).dp
+      Box(
+        modifier = Modifier.size(avatarSize),
+        contentAlignment = Alignment.Center
+      ) {
+        ArtistAvatarImage(
+          artistName = artist.name,
+          modifier = Modifier.fillMaxSize()
+        )
+        SelectionIndicator(isSelected, Modifier.align(Alignment.TopEnd).padding(4.dp))
+      }
+
+      Spacer(modifier = Modifier.width(14.dp))
+
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = artist.name,
+          style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+          color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+          text = "${artist.songCount} songs • ${artist.albumCount} albums",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun PlaylistArtCollage(
+  artworkSongs: List<MusicSong>,
+  isFavorites: Boolean = false,
+  modifier: Modifier = Modifier
+) {
+  val collageSongs = remember(artworkSongs) { artworkSongs.take(4) }
+  Box(
+    modifier = modifier
+      .aspectRatio(1f)
+      .clip(AppShapeScale.medium)
+      .background(MaterialTheme.colorScheme.surfaceVariant),
+    contentAlignment = Alignment.Center
+  ) {
+    when (collageSongs.size) {
+      0 -> {
+        Icon(
+          imageVector = if (isFavorites) Icons.RoundedFilled.Favorite else Icons.RoundedFilled.QueueMusic,
+          contentDescription = "Playlist",
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp),
+          tint = if (isFavorites) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+      }
+      1 -> {
+        LocalAlbumArtImage(
+          uri = collageSongs[0].albumArtUri,
+          audioSong = collageSongs[0],
+          contentDescription = null,
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp)
+            .clip(CircleShape)
+        )
+      }
+      2 -> {
+        Column(
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp),
+          verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          LocalAlbumArtImage(
+            uri = collageSongs[0].albumArtUri,
+            audioSong = collageSongs[0],
+            contentDescription = null,
+            modifier = Modifier
+              .weight(1f)
+              .aspectRatio(1f)
+              .clip(CircleShape)
+          )
+          LocalAlbumArtImage(
+            uri = collageSongs[1].albumArtUri,
+            audioSong = collageSongs[1],
+            contentDescription = null,
+            modifier = Modifier
+              .weight(1f)
+              .aspectRatio(1f)
+              .clip(CircleShape)
+          )
+        }
+      }
+      3 -> {
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          Layout(
+            content = {
+              collageSongs.forEach { song ->
+                LocalAlbumArtImage(
+                  uri = song.albumArtUri,
+                  audioSong = song,
+                  contentDescription = null,
+                  modifier = Modifier.clip(CircleShape)
+                )
+              }
+            },
+            modifier = Modifier.fillMaxSize()
+          ) { measurables, constraints ->
+            val separation = 2.dp.toPx()
+            val itemSize = floor((constraints.maxWidth * 2f / (2f + sqrt(3f))) - separation).toInt()
+
+            val placeables = measurables.map {
+              it.measure(
+                constraints.copy(
+                  minWidth = itemSize, maxWidth = itemSize,
+                  minHeight = itemSize, maxHeight = itemSize
+                )
+              )
+            }
+
+            val L = itemSize + separation
+            val h = L * sqrt(3f) / 2f
+
+            val collageHeight = h + itemSize
+            val collageWidth = L + itemSize
+
+            val offsetX = ((constraints.maxWidth - collageWidth) / 2f).toInt()
+            val offsetY = ((constraints.maxHeight - collageHeight) / 2f).toInt()
+
+            layout(constraints.maxWidth, constraints.maxHeight) {
+              placeables.getOrNull(0)?.placeRelative(
+                x = (offsetX + (collageWidth - itemSize) / 2f).toInt(),
+                y = offsetY
+              )
+              placeables.getOrNull(1)?.placeRelative(
+                x = offsetX,
+                y = (offsetY + h).toInt()
+              )
+              placeables.getOrNull(2)?.placeRelative(
+                x = (offsetX + L).toInt(),
+                y = (offsetY + h).toInt()
+              )
+            }
+          }
+        }
+      }
+      else -> {
+        Column(
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp),
+          verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+          Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+          ) {
+            LocalAlbumArtImage(
+              uri = collageSongs.getOrNull(0)?.albumArtUri,
+              audioSong = collageSongs.getOrNull(0),
+              contentDescription = null,
+              modifier = Modifier
+                .weight(1f)
+                .aspectRatio(1f)
+                .clip(CircleShape)
+            )
+            LocalAlbumArtImage(
+              uri = collageSongs.getOrNull(1)?.albumArtUri,
+              audioSong = collageSongs.getOrNull(1),
+              contentDescription = null,
+              modifier = Modifier
+                .weight(1f)
+                .aspectRatio(1f)
+                .clip(CircleShape)
+            )
+          }
+          Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+          ) {
+            LocalAlbumArtImage(
+              uri = collageSongs.getOrNull(2)?.albumArtUri,
+              audioSong = collageSongs.getOrNull(2),
+              contentDescription = null,
+              modifier = Modifier
+                .weight(1f)
+                .aspectRatio(1f)
+                .clip(CircleShape)
+            )
+            LocalAlbumArtImage(
+              uri = collageSongs.getOrNull(3)?.albumArtUri,
+              audioSong = collageSongs.getOrNull(3),
+              contentDescription = null,
+              modifier = Modifier
+                .weight(1f)
+                .aspectRatio(1f)
+                .clip(CircleShape)
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MusicPlaylistCard(
+  playlist: PlaylistEntity,
+  itemCount: Int,
+  artworkSongs: List<MusicSong>,
+  isSelected: Boolean,
+  selectionNeighbors: MediaSelectionNeighbors = MediaSelectionNeighbors(),
+  isGridMode: Boolean,
+  coverArtSizeDp: Dp = 52.dp,
+  onClick: () -> Unit,
+  onLongClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val selectedShape = rememberMediaSelectionShape(
+    selected = isSelected,
+    grid = isGridMode,
+    neighbors = selectionNeighbors,
+  )
+  val isFavorites = playlist.name.equals(PlaylistRepository.FAVORITES_PLAYLIST_NAME, ignoreCase = true)
+  if (isGridMode) {
+    Card(
+      modifier = modifier
+        .fillMaxWidth()
+        .clip(selectedShape)
+        .tvFocusHighlight(selectedShape, focusedScale = 1.03f)
+        .tvContextMenu(onLongClick)
+        .semantics { selected = isSelected }
+        .mediaCardClickable(onClick = onClick, onLongClick = onLongClick),
+      shape = selectedShape,
+      colors = CardDefaults.cardColors(
+        containerColor = animatedSelectionColor(isSelected)
+      )
+    ) {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(2.dp)
+      ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+          PlaylistArtCollage(
+            artworkSongs = artworkSongs,
+            isFavorites = isFavorites,
+            modifier = Modifier.fillMaxWidth()
+          )
+          SelectionIndicator(isSelected, Modifier.align(Alignment.TopEnd).padding(6.dp))
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Column(modifier = Modifier.fillMaxWidth()) {
+          Text(
+            text = playlist.name,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurface
+          )
+          Text(
+            text = if (itemCount == 1) "1 song" else "$itemCount songs",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        }
+      }
+    }
+  } else {
+    Surface(
+      modifier = modifier
+        .fillMaxWidth()
+        .padding(horizontal = 0.dp)
+        .clip(selectedShape)
+        .tvFocusHighlight(selectedShape, focusedScale = 1.03f)
+        .tvContextMenu(onLongClick)
+        .semantics { selected = isSelected }
+        .mediaCardClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = selectedShape,
+        color = animatedSelectionColor(isSelected)
+    ) {
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Box(modifier = Modifier.size(coverArtSizeDp)) {
+          PlaylistArtCollage(
+            artworkSongs = artworkSongs,
+            isFavorites = isFavorites,
+            modifier = Modifier.fillMaxSize()
+          )
+          SelectionIndicator(isSelected, Modifier.align(Alignment.TopEnd).padding(4.dp))
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+          Text(
+            text = playlist.name,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurface
+          )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Text(
+          text = if (itemCount == 1) "1 song" else "$itemCount songs",
+          style = MaterialTheme.typography.labelMedium,
+          color = MaterialTheme.colorScheme.primary
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun PlaylistsTabContent(
+  playlists: List<PlaylistEntity>,
+  songs: List<MusicSong>,
+  viewMode: MusicViewMode,
+  coverArtSizeDp: Dp = 52.dp,
+  gridCoverArtSizeDp: Int = 145,
+  onPlaylistClick: (PlaylistEntity) -> Unit,
+  onPlaylistLongClick: (PlaylistEntity) -> Unit,
+  selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<PlaylistEntity, Long>,
+  listState: LazyListState = rememberLazyListState(),
+  gridState: LazyGridState = rememberLazyGridState(),
+) {
+  val playlistRepository: PlaylistRepository = koinInject()
+
+  val playlistDetails by produceState<Map<Int, Pair<Int, List<MusicSong>>>>(initialValue = emptyMap(), playlists, songs) {
+    value = withContext(Dispatchers.IO) {
+      playlists.associate { playlist ->
+        val items = playlistRepository.getPlaylistItems(playlist.id)
+        val artworkSongs = items.take(4).mapNotNull { item ->
+          songs.firstOrNull { it.path == item.filePath || it.uri.toString() == item.filePath }
+        }
+        playlist.id to Pair(items.size, artworkSongs)
+      }
+    }
+  }
+
+  Column(modifier = Modifier.fillMaxSize()) {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp, vertical = 8.dp),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Text(
+        text = "${playlists.size} Playlists",
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+    }
+
+    if (playlists.isEmpty()) {
+      EmptyMusicState(text = "No playlists found. Create one!")
+    } else {
+      val gridColumns by remember(gridState) {
+        derivedStateOf { gridState.layoutInfo.maxSpan.coerceAtLeast(1) }
+      }
+      val navBarHeight = LocalNavigationBarHeight.current
+      Box(modifier = Modifier.fillMaxSize()) {
+        if (viewMode == MusicViewMode.GRID) {
+          LazyVerticalGrid(
+            state = gridState,
+            columns = GridCells.Adaptive(minSize = gridCoverArtSizeDp.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = navBarHeight + 8.dp),
+            verticalArrangement = Arrangement.spacedBy(MediaSelectionGridGap),
+            horizontalArrangement = Arrangement.spacedBy(MediaSelectionGridGap)
+          ) {
+            items(count = playlists.size, key = { index -> playlists[index].id }) { index ->
+              val playlist = playlists[index]
+              val details = playlistDetails[playlist.id]
+              val itemCount = details?.first ?: 0
+              val artworkSongs = details?.second ?: emptyList()
+              MusicPlaylistCard(
+                playlist = playlist,
+                modifier = mediaItemMotion(),
+                itemCount = itemCount,
+                artworkSongs = artworkSongs,
+                isSelected = selectionManager.isSelected(playlist),
+                selectionNeighbors = mediaSelectionNeighbors(index, playlists.size, gridColumns) { neighbor ->
+              selectionManager.isSelected(playlists[neighbor])
+            },
+                isGridMode = true,
+                onClick = { onPlaylistClick(playlist) },
+                onLongClick = { onPlaylistLongClick(playlist) }
+              )
+            }
+          }
+        } else {
+          LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 8.dp, top = 4.dp, end = 8.dp, bottom = navBarHeight + 8.dp),
+        verticalArrangement = Arrangement.spacedBy(MediaSelectionListGap)
+          ) {
+            items(count = playlists.size, key = { index -> playlists[index].id }) { index ->
+              val playlist = playlists[index]
+              val details = playlistDetails[playlist.id]
+              val itemCount = details?.first ?: 0
+              val artworkSongs = details?.second ?: emptyList()
+              MusicPlaylistCard(
+                playlist = playlist,
+                modifier = mediaItemMotion(),
+                itemCount = itemCount,
+                artworkSongs = artworkSongs,
+                isSelected = selectionManager.isSelected(playlist),
+                selectionNeighbors = mediaSelectionNeighbors(index, playlists.size, 1) { neighbor ->
+              selectionManager.isSelected(playlists[neighbor])
+            },
+                isGridMode = false,
+                coverArtSizeDp = coverArtSizeDp,
+                onClick = { onPlaylistClick(playlist) },
+                onLongClick = { onPlaylistLongClick(playlist) }
+              )
+            }
+          }
+        }
+
+        MusicTabScrollBar(
+          viewMode = viewMode,
+          listState = listState,
+          gridState = gridState,
+          bottomPadding = navBarHeight,
+          dragLabelProvider = { index -> fastScrollGlyph(playlists.getOrNull(index)?.name) },
+          modifier = Modifier.align(Alignment.CenterEnd),
+        )
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AlbumDetailSheet(
+  album: MusicAlbum,
+  songs: List<MusicSong>,
+  recentlyPlayedFilePath: String?,
+  isPlaybackActive: Boolean = false,
+  onDismiss: () -> Unit,
+  onSongClick: (MusicSong) -> Unit,
+  onSongLongClick: (MusicSong) -> Unit,
+  onPlayAlbum: () -> Unit
+) {
+  ModalBottomSheet(
+    onDismissRequest = onDismiss,
+    sheetState =
+      rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+      )
+  ) {
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Box(
+          modifier = Modifier
+            .size(64.dp)
+            .clip(AppShapeScale.medium)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+          contentAlignment = Alignment.Center
+        ) {
+          LocalAlbumArtImage(
+            uri = album.albumArtUri,
+            audioSong = album.artworkSong,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize()
+          )
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+          Text(
+            text = album.title,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+          )
+          Text(
+            text = album.artist,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+          Text(
+            text = "${songs.size} Tracks",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary
+          )
+        }
+
+        Button(onClick = onPlayAlbum) {
+          Icon(imageVector = Icons.RoundedFilled.PlayArrow, contentDescription = null)
+          Spacer(modifier = Modifier.width(4.dp))
+          Text("Play")
+        }
+      }
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      val sessionState by PlaybackSession.state.collectAsStateWithLifecycle()
+      val playingUri = sessionState.currentItem?.originalUri
+
+      LazyColumn(
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(350.dp)
+      ) {
+        items(songs, key = { it.id }) { song ->
+          val isPlaying = when {
+            !isPlaybackActive -> false
+            playingUri != null -> song.uri.toString() == playingUri || song.path == playingUri
+            else -> recentlyPlayedFilePath != null && song.path == recentlyPlayedFilePath
+          }
+          SongListItem(
+            song = song,
+            isPlaying = isPlaying,
+            onClick = { onSongClick(song) },
+            onLongClick = { onSongLongClick(song) }
+          )
+        }
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArtistDetailSheet(
+  artist: MusicArtist,
+  songs: List<MusicSong>,
+  recentlyPlayedFilePath: String?,
+  isPlaybackActive: Boolean = false,
+  onDismiss: () -> Unit,
+  onSongClick: (MusicSong) -> Unit,
+  onSongLongClick: (MusicSong) -> Unit,
+  onPlayArtist: () -> Unit
+) {
+  ModalBottomSheet(
+    onDismissRequest = onDismiss,
+    sheetState =
+      rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+      )
+  ) {
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        ArtistAvatarImage(
+          artistName = artist.name,
+          modifier = Modifier.size(64.dp),
+          iconSize = 32.dp
+        )
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+          Text(
+            text = artist.name,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+          )
+          Text(
+            text = "${songs.size} Songs",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        }
+
+        Button(onClick = onPlayArtist) {
+          Icon(imageVector = Icons.RoundedFilled.PlayArrow, contentDescription = null)
+          Spacer(modifier = Modifier.width(4.dp))
+          Text("Play All")
+        }
+      }
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      val sessionState by PlaybackSession.state.collectAsStateWithLifecycle()
+      val playingUri = sessionState.currentItem?.originalUri
+
+      LazyColumn(
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(350.dp)
+      ) {
+        items(songs, key = { it.id }) { song ->
+          val isPlaying = when {
+            !isPlaybackActive -> false
+            playingUri != null -> song.uri.toString() == playingUri || song.path == playingUri
+            else -> recentlyPlayedFilePath != null && song.path == recentlyPlayedFilePath
+          }
+          SongListItem(
+            song = song,
+            isPlaying = isPlaying,
+            onClick = { onSongClick(song) },
+            onLongClick = { onSongLongClick(song) }
+          )
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun CreatePlaylistDialog(
+  onDismiss: () -> Unit,
+  onCreate: (String) -> Unit
+) {
+  var playlistName by remember { mutableStateOf("") }
+
+  app.gyrolet.mpvrx.presentation.components.AppAlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("Create Playlist") },
+    text = {
+      OutlinedTextField(
+        value = playlistName,
+        onValueChange = { playlistName = it },
+        label = { Text("Playlist Name") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+      )
+    },
+    confirmButton = {
+      TextButton(
+        onClick = { onCreate(playlistName) },
+        enabled = playlistName.isNotBlank()
+      ) {
+        Text("Create")
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text("Cancel")
+      }
+    }
+  )
+}
+
+@Composable
+private fun EmptyMusicState(text: String) {
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .padding(32.dp),
+    contentAlignment = Alignment.Center
+  ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+      Icon(
+        imageVector = Icons.RoundedFilled.Audiotrack,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+        modifier = Modifier.size(64.dp)
+      )
+      Spacer(modifier = Modifier.height(12.dp))
+      Text(
+        text = text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center
+      )
+    }
+  }
+}

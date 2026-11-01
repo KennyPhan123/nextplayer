@@ -1,0 +1,872 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+package app.gyrolet.mpvrx.utils.storage
+
+import android.content.Context
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.storage.StorageManager
+import android.os.storage.StorageVolume
+import android.provider.MediaStore
+import android.util.Log
+import app.gyrolet.mpvrx.database.repository.VideoMetadataCacheRepository
+import app.gyrolet.mpvrx.domain.media.model.Video
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import java.io.File
+import java.util.Locale
+import kotlin.math.log10
+import kotlin.math.pow
+
+/**
+ * Video Scanning Utilities
+ * Handles video file scanning and metadata extraction
+ */
+object VideoScanUtils : KoinComponent {
+  private const val TAG = "VideoScanUtils"
+  private val metadataCache: VideoMetadataCacheRepository by inject()
+
+  /**
+   * Android indexes a video's container rotation in MediaColumns.ORIENTATION from API 29.
+   * Querying the legacy "rotation" name there drops the angle and launches quarter-turned videos
+   * in their encoded orientation until mpv corrects it. Retain the legacy name on older providers;
+   * the query below still retries without optional geometry when the column is unsupported.
+   */
+  private val videoRotationColumn =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.MediaColumns.ORIENTATION else "rotation"
+
+  /**
+   * Direct children only. The old `LIKE 'folder/%'` returned the whole subtree, so opening a storage
+   * root marshalled every media row in the library across Binder just to discard all but a few.
+   * The NOT LIKE pattern needs at least one more '/' after the folder than a direct child path has,
+   * so it only drops nested rows; the Kotlin direct-child check still runs on every returned row.
+   */
+  private const val DIRECT_CHILD_SELECTION = "LOWER(%1\$s) LIKE ? AND LOWER(%1\$s) NOT LIKE ?"
+
+  private fun directChildSelectionArgs(folderKey: String): Array<String> =
+    arrayOf("$folderKey/%", "$folderKey/%/%")
+
+  // Extensions where MediaStore duration is unreliable (returns 0)
+  private val MEDIASTORE_DURATION_UNRELIABLE = setOf("ts", "mts", "m2ts")
+
+  /**
+   * Get all videos in a specific folder
+   * MediaStore first, filesystem fallback for external devices
+   */
+  suspend fun getVideosInFolder(
+    context: Context,
+    folderPath: String,
+    options: MediaScanOptions = MediaScanOptions(),
+    forceFileSystemCheck: Boolean = false,
+  ): List<Video> =
+    withContext(Dispatchers.IO) {
+      val normalizedFolderPath = normalizeStoragePath(folderPath) ?: return@withContext emptyList()
+      val videosMap = mutableMapOf<String, Video>()
+      val noMediaPathFilter = NoMediaPathFilter(options)
+      val folder = File(normalizedFolderPath)
+
+      if (noMediaPathFilter.shouldExcludeDirectory(folder)) {
+        return@withContext emptyList()
+      }
+
+      // Try MediaStore first (fast)
+      val keyResolver = MediaPathKeyResolver()
+      scanVideosFromMediaStore(context, normalizedFolderPath, videosMap, noMediaPathFilter, keyResolver)
+      if (options.includeAudio) {
+        scanAudioFromMediaStore(context, normalizedFolderPath, videosMap, noMediaPathFilter, options, keyResolver)
+      }
+      for (video in UnindexedVideoDiscovery.videos(options, normalizedFolderPath)) {
+        val key = keyResolver.key(video.path) ?: continue
+        videosMap.putIfAbsent(key, video)
+      }
+
+      // MediaStore returns 0 duration for .ts/.mts/.m2ts — fix those entries now
+      val zeroTsKeys =
+        videosMap.keys.filter { key ->
+          val v = videosMap[key] ?: return@filter false
+          v.duration <= 0L && v.path.substringAfterLast('.').lowercase() in MEDIASTORE_DURATION_UNRELIABLE
+        }
+      for (key in zeroTsKeys) {
+        currentCoroutineContext().ensureActive()
+        val v = videosMap[key] ?: continue
+        try {
+          val file = File(v.path)
+          if (!app.gyrolet.mpvrx.BuildConfig.SCOPED_STORAGE_ONLY && !file.exists()) continue
+          val meta = if (app.gyrolet.mpvrx.BuildConfig.SCOPED_STORAGE_ONLY) {
+            metadataCache.getOrExtractContentMetadata(v)
+          } else metadataCache.getOrExtractMetadata(file, v.uri, v.displayName)
+          if (meta != null && meta.durationMs > 0L) {
+            videosMap[key] =
+              v.copy(
+                duration = meta.durationMs,
+                durationFormatted = formatDuration(meta.durationMs),
+              )
+          }
+        } catch (error: kotlinx.coroutines.CancellationException) {
+          throw error
+        } catch (_: Exception) {
+        }
+      }
+
+      // Manual refreshes force a filesystem verification pass so new/deleted files are reflected
+      // even before MediaStore catches up.
+      if (
+        !app.gyrolet.mpvrx.BuildConfig.SCOPED_STORAGE_ONLY &&
+        folder.exists() &&
+        folder.canRead() &&
+        shouldRunFilesystemVideoCheck(forceFileSystemCheck, videosMap.size)
+      ) {
+        scanVideosFromFileSystem(context, folder, videosMap, options, noMediaPathFilter, keyResolver)
+      }
+
+      videosMap.values.filter(options::includesVideo)
+        .sortedBy { it.displayName.lowercase(Locale.getDefault()) }
+    }
+
+  /**
+   * Scan videos from MediaStore
+   */
+  private suspend fun scanVideosFromMediaStore(
+    context: Context,
+    folderPath: String,
+    videosMap: MutableMap<String, Video>,
+    noMediaPathFilter: NoMediaPathFilter,
+    keyResolver: MediaPathKeyResolver,
+  ) {
+    val baseProjection =
+      arrayOf(
+        MediaStore.Video.Media._ID,
+        MediaStore.Video.Media.DISPLAY_NAME,
+        MediaStore.Video.Media.DATA,
+        MediaStore.Video.Media.SIZE,
+        MediaStore.Video.Media.DURATION,
+        MediaStore.Video.Media.DATE_MODIFIED,
+        MediaStore.Video.Media.DATE_ADDED,
+        MediaStore.Video.Media.MIME_TYPE,
+        MediaStore.Video.Media.WIDTH,
+        MediaStore.Video.Media.HEIGHT,
+      )
+    val projectionWithRotation = baseProjection + videoRotationColumn
+
+    val normalizedFolderPath = normalizeStoragePath(folderPath) ?: return
+    val normalizedFolderKey = storagePathKey(normalizedFolderPath) ?: return
+    val selection = DIRECT_CHILD_SELECTION.format(MediaStore.Video.Media.DATA)
+    val selectionArgs = directChildSelectionArgs(normalizedFolderKey)
+
+    try {
+      fun queryVideos(projection: Array<String>) =
+        context.contentResolver.query(
+          MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+          projection,
+          selection,
+          selectionArgs,
+          "${MediaStore.Video.Media.DISPLAY_NAME} ASC",
+        )
+      val cursor =
+        try {
+          queryVideos(projectionWithRotation)
+        } catch (error: RuntimeException) {
+          // Providers reject the optional rotation column with IllegalArgumentException (strict
+          // projection) or SQLiteException (no such column). Retry without it so the entire folder
+          // scan is not discarded.
+          if (error !is IllegalArgumentException && error !is android.database.sqlite.SQLiteException) throw error
+          queryVideos(baseProjection)
+        }
+      cursor?.use { cursor ->
+          val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+          val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+          val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+          val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+          val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+          val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
+          val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
+          val mimeTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)
+          val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+          val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
+          val rotationColumn = cursor.getColumnIndex(videoRotationColumn)
+          val folderResolver = MediaFolderResolver(noMediaPathFilter)
+          val existenceCache = FolderListingExistenceCache()
+
+          while (cursor.moveToNext()) {
+            currentCoroutineContext().ensureActive()
+            val path = cursor.getString(dataColumn)?.takeIf { it.isNotBlank() } ?: continue
+            val file = File(path)
+
+            if (!FileTypeUtils.isVideoFile(file)) continue
+            // Only direct children
+            val folder = folderResolver.resolve(file.parent) ?: continue
+            if (folder.key != normalizedFolderKey || folder.excluded) continue
+            if (!app.gyrolet.mpvrx.BuildConfig.SCOPED_STORAGE_ONLY && !existenceCache.exists(file)) continue
+            val normalizedPath = normalizeStoragePath(path) ?: continue
+
+            val id = cursor.getLong(idColumn)
+            val displayName = cursor.getString(nameColumn)?.takeIf { it.isNotBlank() } ?: file.name
+            val title = file.nameWithoutExtension
+            val size = cursor.getLong(sizeColumn)
+            val duration = cursor.getLong(durationColumn)
+            val dateModified = cursor.getLong(dateModifiedColumn)
+            val dateAdded = cursor.getLong(dateAddedColumn)
+            val mimeType = cursor.getString(mimeTypeColumn) ?: "video/*"
+            val width = cursor.getInt(widthColumn)
+            val height = cursor.getInt(heightColumn)
+            val rawRotation =
+              if (rotationColumn >= 0 && !cursor.isNull(rotationColumn)) cursor.getInt(rotationColumn) else 0
+            val normalizedRotation = ((rawRotation % 360) + 360) % 360
+            val rotation = if (normalizedRotation % 90 == 0) normalizedRotation else 0
+
+            val uri =
+              Uri.withAppendedPath(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                id.toString(),
+              )
+
+            val videoKey = keyResolver.key(normalizedPath) ?: normalizedPath
+            videosMap[videoKey] =
+              Video(
+                id = id,
+                title = title,
+                displayName = displayName,
+                path = normalizedPath,
+                uri = uri,
+                duration = duration,
+                durationFormatted = formatDuration(duration),
+                size = size,
+                sizeFormatted = formatFileSize(size),
+                dateModified = dateModified,
+                dateAdded = dateAdded,
+                mimeType = mimeType,
+                bucketId = normalizedFolderPath,
+                bucketDisplayName = leafStorageName(normalizedFolderPath),
+                width = width,
+                height = height,
+                rotation = rotation,
+                fps = 0f,
+                resolution = formatResolution(width, height),
+                hasEmbeddedSubtitles = false,
+                subtitleCodec = "",
+              )
+          }
+        }
+    } catch (error: kotlinx.coroutines.CancellationException) {
+      throw error
+    } catch (e: Exception) {
+      Log.e(TAG, "MediaStore video scan error", e)
+    }
+  }
+
+  private suspend fun scanAudioFromMediaStore(
+    context: Context,
+    folderPath: String,
+    videosMap: MutableMap<String, Video>,
+    noMediaPathFilter: NoMediaPathFilter,
+    options: MediaScanOptions,
+    keyResolver: MediaPathKeyResolver,
+  ) {
+    val projection =
+      arrayOf(
+        MediaStore.Audio.Media._ID,
+        MediaStore.Audio.Media.DISPLAY_NAME,
+        MediaStore.Audio.Media.TITLE,
+        MediaStore.Audio.Media.DATA,
+        MediaStore.Audio.Media.SIZE,
+        MediaStore.Audio.Media.DURATION,
+        MediaStore.Audio.Media.DATE_MODIFIED,
+        MediaStore.Audio.Media.DATE_ADDED,
+        MediaStore.Audio.Media.MIME_TYPE,
+      )
+    val normalizedFolderPath = normalizeStoragePath(folderPath) ?: return
+    val normalizedFolderKey = storagePathKey(normalizedFolderPath) ?: return
+    val selection = DIRECT_CHILD_SELECTION.format(MediaStore.Audio.Media.DATA)
+
+    try {
+      context.contentResolver
+        .query(
+          MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+          projection,
+          selection,
+          directChildSelectionArgs(normalizedFolderKey),
+          "${MediaStore.Audio.Media.DISPLAY_NAME} ASC",
+        )?.use { cursor ->
+          val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+          val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+          val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+          val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+          val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+          val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+          val modifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
+          val addedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+          val mimeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
+          val folderResolver = MediaFolderResolver(noMediaPathFilter)
+
+          while (cursor.moveToNext()) {
+            currentCoroutineContext().ensureActive()
+            val path = cursor.getString(dataColumn)?.takeIf { it.isNotBlank() } ?: continue
+            val file = File(path)
+            if (!FileTypeUtils.isAudioFile(file)) continue
+            val folder = folderResolver.resolve(file.parent) ?: continue
+            if (folder.key != normalizedFolderKey || folder.excluded) continue
+            if (!app.gyrolet.mpvrx.BuildConfig.SCOPED_STORAGE_ONLY && !file.isFile) continue
+            val duration = cursor.getLong(durationColumn)
+            if (!options.includesAudioDuration(duration)) continue
+            val normalizedPath = normalizeStoragePath(path) ?: continue
+            val id = cursor.getLong(idColumn)
+            val displayName = cursor.getString(nameColumn) ?: file.name
+            val title = cursor.getString(titleColumn)?.takeIf { it.isNotBlank() } ?: file.nameWithoutExtension
+            val size = cursor.getLong(sizeColumn)
+            val uri = Uri.withAppendedPath(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id.toString())
+            videosMap[keyResolver.key(normalizedPath) ?: normalizedPath] =
+              Video(
+                id = id,
+                title = title,
+                displayName = displayName,
+                path = normalizedPath,
+                uri = uri,
+                duration = duration,
+                durationFormatted = formatDuration(duration),
+                size = size,
+                sizeFormatted = formatFileSize(size),
+                dateModified = cursor.getLong(modifiedColumn),
+                dateAdded = cursor.getLong(addedColumn),
+                mimeType =
+                  cursor.getString(mimeColumn) ?: FileTypeUtils.getMimeTypeFromExtension(file.extension),
+                bucketId = normalizedFolderPath,
+                bucketDisplayName = leafStorageName(normalizedFolderPath),
+                width = 0,
+                height = 0,
+                fps = 0f,
+                resolution = "--",
+                isAudio = true,
+              )
+          }
+        }
+    } catch (error: kotlinx.coroutines.CancellationException) {
+      throw error
+    } catch (e: Exception) {
+      Log.e(TAG, "MediaStore audio scan error", e)
+    }
+  }
+
+  /**
+   * Scan videos from filesystem (fallback)
+   */
+  private suspend fun scanVideosFromFileSystem(
+    context: Context,
+    folder: File,
+    videosMap: MutableMap<String, Video>,
+    options: MediaScanOptions,
+    noMediaPathFilter: NoMediaPathFilter,
+    keyResolver: MediaPathKeyResolver,
+  ) {
+    try {
+      val files = folder.listFiles() ?: return
+      val filesToProcess = mutableListOf<File>()
+      val fileStats = HashMap<File, FileEntryStat>()
+
+      for (file in files) {
+        currentCoroutineContext().ensureActive()
+        if (!FileTypeUtils.isSupportedMediaFile(file, options)) continue
+        val stat = readFileEntryStat(file) ?: continue
+        if (!stat.isFile) continue
+        if (FileFilterUtils.shouldSkipFile(file, options, noMediaPathFilter)) continue
+
+        val path = normalizeStoragePath(file.absolutePath) ?: continue
+        val videoKey = keyResolver.key(path) ?: path
+        if (videosMap.containsKey(videoKey)) continue
+
+        filesToProcess.add(file)
+        fileStats[file] = stat
+      }
+
+      if (filesToProcess.isEmpty()) return
+
+      val metadataMap =
+        metadataCache.getOrExtractMetadataBatch(
+          filesToProcess.map { file ->
+            Triple(file, Uri.fromFile(file), file.name)
+          },
+        )
+
+      for (file in filesToProcess) {
+        currentCoroutineContext().ensureActive()
+        try {
+          val path = normalizeStoragePath(file.absolutePath) ?: continue
+          val videoKey = keyResolver.key(path) ?: path
+          val uri = Uri.fromFile(file)
+          val displayName = file.name
+          val title = file.nameWithoutExtension
+          val stat = fileStats.getValue(file)
+          val fileSize = stat.size
+          val dateModified = stat.lastModifiedMs / 1000
+          val cachedMetadata = metadataMap[path]
+          val isAudio = FileTypeUtils.isAudioFile(file)
+          val duration = cachedMetadata?.durationMs ?: 0L
+          val resolvedSize = cachedMetadata?.sizeBytes?.takeIf { it > 0 } ?: fileSize
+          val mimeType = FileTypeUtils.getMimeTypeFromExtension(file.extension.lowercase())
+
+          videosMap[videoKey] =
+            Video(
+              id = path.hashCode().toLong(),
+              title = title,
+              displayName = displayName,
+              path = path,
+              uri = uri,
+              duration = duration,
+              durationFormatted = formatDuration(duration),
+              size = resolvedSize,
+              sizeFormatted = formatFileSize(resolvedSize),
+              dateModified = dateModified,
+              dateAdded = dateModified,
+              mimeType = mimeType,
+              bucketId = normalizeStoragePath(folder.absolutePath) ?: folder.absolutePath,
+              bucketDisplayName = leafStorageName(folder.absolutePath),
+              width = cachedMetadata?.width ?: 0,
+              height = cachedMetadata?.height ?: 0,
+              fps = cachedMetadata?.fps ?: 0f,
+              resolution = formatResolution(cachedMetadata?.width ?: 0, cachedMetadata?.height ?: 0),
+              hasEmbeddedSubtitles = cachedMetadata?.hasEmbeddedSubtitles ?: false,
+              subtitleCodec = cachedMetadata?.subtitleCodec ?: "",
+              isAudio = isAudio,
+            )
+        } catch (error: kotlinx.coroutines.CancellationException) {
+          throw error
+        } catch (e: Exception) {
+          Log.w(TAG, "Error processing file: ${file.absolutePath}", e)
+        }
+      }
+    } catch (error: kotlinx.coroutines.CancellationException) {
+      throw error
+    } catch (e: Exception) {
+      Log.e(TAG, "Filesystem video scan error", e)
+    }
+  }
+
+  // Formatting utilities, shared with MediaFileRepository and MediaLibraryCache
+
+  internal fun formatDuration(durationMs: Long): String {
+    if (durationMs <= 0) return "0s"
+
+    val seconds = durationMs / 1000
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val secs = seconds % 60
+
+    return when {
+      hours > 0 -> String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, secs)
+      minutes > 0 -> String.format(Locale.getDefault(), "%d:%02d", minutes, secs)
+      else -> "${secs}s"
+    }
+  }
+
+  internal fun formatFileSize(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    val digitGroups = (log10(bytes.toDouble()) / log10(1024.0)).toInt()
+    return String.format(
+      Locale.getDefault(),
+      "%.1f %s",
+      bytes / 1024.0.pow(digitGroups.toDouble()),
+      units[digitGroups],
+    )
+  }
+
+fun formatResolution(
+    width: Int,
+    height: Int,
+): String {
+    if (width <= 0 || height <= 0) return "--"
+
+    val longSide = maxOf(width, height)
+
+    // Scanline count, which is what the "p" suffix actually names. Height carries it,
+    // except for a tall frame, which is a landscape recording rotated for portrait
+    // playback and therefore keeps the class on its width instead. Frames that are only
+    // 4:3-ish (1440×1080, 960×1080) are not tall: they are anamorphic 1080 and still
+    // carry a full 1080 lines, which minOf/maxOf would otherwise report as the width.
+    val isRotatedPortrait = height > width && height.toLong() * 10 >= width.toLong() * 13
+    val scanlines = if (isRotatedPortrait) width else height
+
+    return when {
+        // 8K / 4320p class
+        longSide >= 7680 || scanlines >= 4320 -> "4320p"
+
+        // 4K / 2160p class
+        // Includes cinematic 4K such as 3840×1600
+        longSide >= 3840 || scanlines >= 2160 -> "2160p"
+
+        // QHD / 1440p class
+        // Includes ultrawide 3440×1440
+        scanlines >= 1440 -> "1440p"
+
+        // FHD / 1080p class
+        // A frame that still carries a full 1080 scanlines is 1080p however narrow it
+        // is. Anamorphic, 4:3 broadcast and pillarboxed frames (1440×1080, 1152×1080,
+        // 1280×1080) have a long side below 1920, so requiring the long side to reach
+        // 1920 demoted them to 720p.
+        scanlines >= 1000 -> "1080p"
+
+        // Cinematic letterboxing crops scanlines away instead of squeezing them
+        // (1920×800, 1920×816, 2560×600), so the long side has to decide here.
+        longSide >= 1920 && scanlines >= 750 -> "1080p"
+
+        // HD / 720p class
+        // Includes 1280×544, 1280×576, etc.
+        longSide >= 1280 && scanlines >= 500 -> "720p"
+
+        // 480p class
+        longSide >= 854 || scanlines >= 480 -> "480p"
+
+        // 360p class
+        longSide >= 640 || scanlines >= 360 -> "360p"
+
+        // 240p class
+        longSide >= 426 || scanlines >= 240 -> "240p"
+
+        // 144p / everything below 240p
+        else -> "144p"
+    }
+}
+
+  fun formatResolutionWithFps(
+    width: Int,
+    height: Int,
+    fps: Float,
+  ): String {
+    val resolution = formatResolution(width, height)
+    if (resolution == "--" || !fps.isFinite() || fps <= 0f) return resolution
+    return "$resolution@${fps.toInt()}"
+  }
+}
+
+/**
+ * File Type Utilities
+ * Handles file type detection
+ */
+object FileTypeUtils {
+  /** System document pickers also need disc-image MIME types outside the video MIME family. */
+  fun videoPickerMimeTypes(): Array<String> =
+    arrayOf("video/*", "application/x-iso9660-image", "application/x-cd-image")
+
+  // Video file extensions
+  val VIDEO_EXTENSIONS =
+    setOf(
+      "mp4",
+      "mkv",
+      "avi",
+      "mov",
+      "wmv",
+      "flv",
+      "webm",
+      "m4v",
+      "3gp",
+      "3g2",
+      "mpg",
+      "mpeg",
+      "m2v",
+      "ogv",
+      "ts",
+      "mts",
+      "m2ts",
+      "vob",
+      "iso",
+      "divx",
+      "xvid",
+      "f4v",
+      "rm",
+      "rmvb",
+      "asf",
+    )
+
+  val AUDIO_EXTENSIONS =
+    setOf(
+      "mp3",
+      "m4a",
+      "m4b",
+      "aac",
+      "flac",
+      "ogg",
+      "oga",
+      "opus",
+      "wav",
+      "wave",
+      "wma",
+      "amr",
+      "awb",
+      "ac3",
+      "eac3",
+      "dts",
+      "mka",
+      "aif",
+      "aiff",
+      "aifc",
+      "ape",
+      "mp1",
+      "mp2",
+      "mpa",
+      "mpc",
+      "tta",
+      "tak",
+      "caf",
+      "au",
+      "snd",
+      "ra",
+      "spx",
+      "weba",
+      "3ga",
+      "dsf",
+      "dff",
+      "mlp",
+      "truehd",
+      "mid",
+      "midi",
+    )
+
+  val IMAGE_EXTENSIONS =
+    setOf(
+      "jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "avif"
+    )
+
+  /**
+   * Checks if a file is a video based on extension
+   */
+  fun isVideoFile(file: File): Boolean {
+    val extension = file.extension.lowercase(Locale.ROOT)
+    return VIDEO_EXTENSIONS.contains(extension)
+  }
+
+  fun isAudioFile(file: File): Boolean = file.extension.lowercase(Locale.getDefault()) in AUDIO_EXTENSIONS
+
+  fun stripExtension(title: String): String {
+    val dotIndex = title.lastIndexOf('.')
+    if (dotIndex <= 0) return title
+    val ext = title.substring(dotIndex + 1).lowercase(Locale.getDefault())
+    return if (ext in AUDIO_EXTENSIONS || ext in VIDEO_EXTENSIONS || (ext.length in 2..5 && ext.none { it.isWhitespace() })) {
+      title.substring(0, dotIndex)
+    } else {
+      title
+    }
+  }
+
+  fun isSupportedMediaFile(
+    file: File,
+    options: MediaScanOptions,
+  ): Boolean = isVideoFile(file) || (options.includeAudio && isAudioFile(file))
+
+  fun getDurationMs(file: File): Long =
+    runCatching {
+      MediaMetadataRetriever().use { retriever ->
+        retriever.setDataSource(file.absolutePath)
+        retriever
+          .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+          ?.toLongOrNull()
+          ?: 0L
+      }
+    }.getOrDefault(0L)
+
+  /**
+   * Gets MIME type from file extension
+   */
+  fun getMimeTypeFromExtension(extension: String): String =
+    when (extension.lowercase()) {
+      "mp4" -> "video/mp4"
+      "mkv" -> "video/x-matroska"
+      "avi" -> "video/x-msvideo"
+      "mov" -> "video/quicktime"
+      "webm" -> "video/webm"
+      "flv" -> "video/x-flv"
+      "wmv" -> "video/x-ms-wmv"
+      "m4v" -> "video/x-m4v"
+      "3gp" -> "video/3gpp"
+      "3g2" -> "video/3gpp2"
+      "mpg", "mpeg" -> "video/mpeg"
+      "iso" -> "application/x-iso9660-image"
+      "mp1", "mp2", "mp3", "mpa" -> "audio/mpeg"
+      "m4a", "aac" -> "audio/mp4"
+      "flac" -> "audio/flac"
+      "ogg", "oga", "opus", "spx" -> "audio/ogg"
+      "wav", "wave" -> "audio/wav"
+      "wma" -> "audio/x-ms-wma"
+      "amr", "awb" -> "audio/amr"
+      "ac3" -> "audio/ac3"
+      "eac3" -> "audio/eac3"
+      "dts" -> "audio/vnd.dts"
+      "ape" -> "audio/ape"
+      "mka" -> "audio/x-matroska"
+      "aif", "aiff", "aifc" -> "audio/aiff"
+      "mpc" -> "audio/x-musepack"
+      "tta" -> "audio/x-tta"
+      "tak" -> "audio/x-tak"
+      "caf" -> "audio/x-caf"
+      "au", "snd" -> "audio/basic"
+      "ra" -> "audio/vnd.rn-realaudio"
+      "weba" -> "audio/webm"
+      "3ga" -> "audio/3gpp"
+      "dsf" -> "audio/x-dsf"
+      "dff" -> "audio/x-dff"
+      "mlp", "truehd" -> "audio/vnd.dolby.mlp"
+      "mid", "midi" -> "audio/midi"
+      else -> "video/*"
+    }
+}
+
+/**
+ * File Filter Utilities
+ * Handles file and folder filtering logic
+ */
+object FileFilterUtils {
+  // Folders to skip during scanning (system/cache folders)
+  private val SKIP_FOLDERS =
+    setOf(
+      // System & OS Junk
+      "android",
+      "data",
+      "obb",
+      "system",
+      "lost.dir",
+      ".android_secure",
+      "android_secure",
+      // Hidden & Temp Files
+      ".thumbnails",
+      "thumbnails",
+      "thumbs",
+      ".thumbs",
+      ".cache",
+      "cache",
+      "temp",
+      "tmp",
+      ".temp",
+      ".tmp",
+      // Trash & Recycle Bins
+      ".trash",
+      "trash",
+      ".trashbin",
+      ".trashed",
+      "recycle",
+      "recycler",
+      // App Clutters
+      "log",
+      "logs",
+      "backup",
+      "backups",
+      "stickers",
+      "whatsapp stickers",
+      "telegram stickers",
+    )
+
+  /**
+   * Checks if a folder should be skipped during scanning
+   */
+  fun shouldSkipFolder(
+    folder: File,
+    options: MediaScanOptions = MediaScanOptions(),
+    noMediaPathFilter: NoMediaPathFilter = NoMediaPathFilter(options),
+  ): Boolean {
+    if (noMediaPathFilter.shouldExcludeDirectory(folder)) {
+      return true
+    }
+
+    if (isAndroidDataAccessiblePath(folder)) {
+      // Allow navigation/scanning into Android/data so app-specific video folders
+      // can appear in both the folder list and filesystem browser.
+      return folder.name.startsWith(".") && !options.includeDotFolders
+    }
+
+    val name = folder.name.lowercase()
+    val isHidden = name.startsWith(".")
+    return (isHidden && !options.includeDotFolders) || SKIP_FOLDERS.contains(name)
+  }
+
+  /**
+   * Checks if a file should be skipped during file listing
+   */
+  fun shouldSkipFile(
+    file: File,
+    options: MediaScanOptions = MediaScanOptions(),
+    noMediaPathFilter: NoMediaPathFilter = NoMediaPathFilter(options),
+  ): Boolean {
+    if (file.name.startsWith(".") && !options.includeDotFolders) {
+      return true
+    }
+
+    return noMediaPathFilter.shouldExcludeFile(file)
+  }
+}
+
+/**
+ * Storage Volume Utilities
+ * Handles storage volume detection and management
+ */
+object StorageVolumeUtils {
+  private const val TAG = "StorageVolumeUtils"
+
+  /**
+   * Gets all mounted storage volumes
+   */
+  fun getAllStorageVolumes(context: Context): List<StorageVolume> =
+    try {
+      val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+      storageManager.storageVolumes.filter { volume ->
+        volume.state == Environment.MEDIA_MOUNTED ||
+          (getVolumePath(volume)?.let { path -> File(path).exists() } == true)
+      }.distinctBy { getVolumePath(it) ?: it.uuid ?: it.toString() }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error getting storage volumes", e)
+      emptyList()
+    }
+
+  /**
+   * Gets non-primary (external) storage volumes (SD cards, USB OTG)
+   */
+  fun getExternalStorageVolumes(context: Context): List<StorageVolume> =
+    getAllStorageVolumes(context).filter { !it.isPrimary }
+
+  /**
+   * Gets the physical path of a storage volume
+   */
+  fun getVolumePath(volume: StorageVolume): String? {
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val directory = volume.directory
+        if (directory != null) {
+          return directory.absolutePath
+        }
+      }
+
+      val method = volume.javaClass.getMethod("getPath")
+      val path = method.invoke(volume) as? String
+      if (path != null) {
+        return path
+      }
+
+      volume.uuid?.let { uuid ->
+        val possiblePaths =
+          listOf(
+            "/storage/$uuid",
+            "/mnt/media_rw/$uuid",
+          )
+        for (possiblePath in possiblePaths) {
+          if (File(possiblePath).exists()) {
+            return possiblePath
+          }
+        }
+      }
+
+      return null
+    } catch (e: Exception) {
+      Log.w(TAG, "Could not get volume path", e)
+      return null
+    }
+  }
+}

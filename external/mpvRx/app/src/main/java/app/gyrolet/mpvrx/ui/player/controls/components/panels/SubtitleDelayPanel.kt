@@ -1,0 +1,281 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+package app.gyrolet.mpvrx.ui.player.controls.components.panels
+
+import app.gyrolet.mpvrx.ui.player.PlaybackSession
+
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.R
+import app.gyrolet.mpvrx.preferences.SubtitlesPreferences
+import app.gyrolet.mpvrx.presentation.components.OutlinedNumericChooser
+import app.gyrolet.mpvrx.ui.icons.Icon
+import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.theme.spacing
+import app.gyrolet.mpvrx.ui.theme.AppConnectedControlShapeTokens
+import app.gyrolet.mpvrx.ui.theme.ConnectedLayout
+import app.gyrolet.mpvrx.ui.theme.rememberConnectedShape
+import app.gyrolet.mpvrx.ui.utils.currentMpvConfigOverrideOptions
+import kotlinx.coroutines.delay
+import org.koin.compose.koinInject
+import kotlin.math.roundToInt
+
+@Composable
+fun SubtitleDelayPanel(
+  onDismissRequest: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val preferences = koinInject<SubtitlesPreferences>()
+  val configOwnedOptions = currentMpvConfigOverrideOptions()
+  val delayEnabled = SUB_DELAY_PROPERTY !in configOwnedOptions
+  val secondaryDelayEnabled = SECONDARY_SUB_DELAY_PROPERTY !in configOwnedOptions
+  val speedEnabled = "sub-speed" !in configOwnedOptions
+
+  /**
+   * mpv keeps `sub-delay` and `secondary-sub-delay` as two independent properties, but
+   * setupSubtitlesOptions initialises both from the same default. Writing only `sub-delay`
+   * left the secondary track stuck on the startup value, so a secondary subtitle could never
+   * be synced at all. Keep the two in lockstep, each one only while mpvRx still owns it.
+   */
+  fun setSubtitleDelay(
+    seconds: Float,
+  ) {
+    if (delayEnabled) PlaybackSession.setPropertyDouble(SUB_DELAY_PROPERTY, seconds.toDouble())
+    if (secondaryDelayEnabled) PlaybackSession.setPropertyDouble(SECONDARY_SUB_DELAY_PROPERTY, seconds.toDouble())
+  }
+
+  DraggablePanel(
+    modifier = modifier,
+    header = {
+      DraggablePanelHeader(
+        title = stringResource(R.string.player_sheets_sub_delay_card_title),
+        onDismissRequest = onDismissRequest,
+      )
+    },
+  ) {
+    val delay by PlaybackSession.propDouble[SUB_DELAY_PROPERTY].collectAsState()
+    val delayFloat by remember { derivedStateOf { (delay ?: 0.0).toFloat() } }
+    val speed by PlaybackSession.propDouble["sub-speed"].collectAsState()
+    val speedFloat by remember { derivedStateOf { (speed ?: 1.0).toFloat() } }
+
+    // We unwrap the card content here because DraggablePanel already provides the card
+    SubtitleDelayCardContent(
+      delay = delayFloat,
+      onDelayChange = ::setSubtitleDelay,
+      speed = speedFloat,
+      onSpeedChange = { PlaybackSession.setPropertyDouble("sub-speed", it.toDouble()) },
+      onApply = {
+        if (delayEnabled) preferences.defaultSubDelay.set((delayFloat * 1000).roundToInt())
+        val currentSpeed = speed ?: 1.0
+        if (speedEnabled && currentSpeed in 0.1..10.0) preferences.defaultSubSpeed.set(currentSpeed.toFloat())
+      },
+      onReset = {
+        setSubtitleDelay(preferences.defaultSubDelay.get() / 1000f)
+        if (speedEnabled) PlaybackSession.setPropertyDouble("sub-speed", preferences.defaultSubSpeed.get().toDouble())
+      },
+      delayEnabled = delayEnabled,
+      speedEnabled = speedEnabled,
+    )
+  }
+}
+
+private const val SUB_DELAY_PROPERTY = "sub-delay"
+private const val SECONDARY_SUB_DELAY_PROPERTY = "secondary-sub-delay"
+
+// Extracted content to avoid nested cards since DraggablePanel has a Card
+@Composable
+private fun SubtitleDelayCardContent(
+  delay: Float,
+  onDelayChange: (Float) -> Unit,
+  speed: Float,
+  onSpeedChange: (Float) -> Unit,
+  onApply: () -> Unit,
+  onReset: () -> Unit,
+  delayEnabled: Boolean,
+  speedEnabled: Boolean,
+) {
+  DelayCardContent(
+    delay = delay,
+    onDelayChange = onDelayChange,
+    onApply = onApply,
+    onReset = onReset,
+    delayType = DelayType.Subtitle,
+    delayControlEnabled = delayEnabled,
+    actionsEnabled = delayEnabled || speedEnabled,
+    extraSettings = {
+      OutlinedNumericChooser(
+        label = { Text(stringResource(R.string.player_sheets_sub_delay_card_speed)) },
+        value = speed,
+        onChange = onSpeedChange,
+        max = 10f,
+        step = 0.01f,
+        min = 0.1f,
+        increaseIcon = Icons.RoundedFilled.Add,
+        decreaseIcon = Icons.RoundedFilled.Remove,
+        valueFormatter = { "%.2f".format(it) },
+        enabled = speedEnabled,
+      )
+    },
+  )
+}
+
+@Suppress("LambdaParameterInRestartableEffect")
+@Composable
+fun DelayCardContent( // Renamed from DelayCard and removed the Card wrapper
+  delay: Float,
+  onDelayChange: (Float) -> Unit,
+  onApply: () -> Unit,
+  onReset: () -> Unit,
+  delayType: DelayType,
+  delayControlEnabled: Boolean = true,
+  actionsEnabled: Boolean = true,
+  extraSettings: @Composable ColumnScope.() -> Unit = {},
+) {
+  // Note: verticalScroll is now handled by DraggablePanel
+  Column(
+    Modifier.padding(MaterialTheme.spacing.medium),
+    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
+  ) {
+    OutlinedNumericChooser(
+      label = { Text(stringResource(R.string.player_sheets_sub_delay_card_delay)) },
+      value = delay,
+      onChange = onDelayChange,
+      step = 0.1f,
+      min = Float.NEGATIVE_INFINITY,
+      max = Float.POSITIVE_INFINITY,
+      suffix = {
+        Text(
+          androidx.compose.ui.res
+            .stringResource(app.gyrolet.mpvrx.R.string.ui_s),
+        )
+      },
+      increaseIcon = Icons.RoundedFilled.Add,
+      decreaseIcon = Icons.RoundedFilled.Remove,
+      valueFormatter = { "%.1f".format(it) },
+      enabled = delayControlEnabled,
+    )
+    Column(
+      modifier = Modifier.animateContentSize(),
+    ) { extraSettings() }
+    // true (heard -> spotted), false (spotted -> heard)
+    var isDirectionPositive by remember { mutableStateOf<Boolean?>(null) }
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(AppConnectedControlShapeTokens.spacing),
+    ) {
+      var timerStart by remember { mutableStateOf<Long?>(null) }
+      var finalDelay by remember { mutableStateOf(delay) }
+      LaunchedEffect(isDirectionPositive) {
+        if (isDirectionPositive == null) {
+          onDelayChange(finalDelay)
+          return@LaunchedEffect
+        }
+        finalDelay = delay
+        val startTime = System.currentTimeMillis()
+        timerStart = startTime
+        val startingDelay: Float = finalDelay
+        while (isDirectionPositive != null && timerStart != null) {
+          val elapsed = System.currentTimeMillis() - startTime
+          val direction = isDirectionPositive ?: break
+          finalDelay = startingDelay + (if (direction) elapsed / 1000f else -elapsed / 1000f)
+          // Arbitrary delay of 20ms
+          delay(20)
+        }
+      }
+      Button(
+        onClick = {
+          isDirectionPositive = if (isDirectionPositive == null) delayType == DelayType.Audio else null
+        },
+        modifier = Modifier.weight(1f).heightIn(min = 64.dp),
+        shape = rememberConnectedShape(0, 2, ConnectedLayout.Horizontal, tokens = AppConnectedControlShapeTokens),
+        enabled = delayControlEnabled && isDirectionPositive != (delayType == DelayType.Audio),
+      ) {
+        Text(
+          stringResource(
+            if (delayType == DelayType.Audio) {
+              R.string.player_sheets_sub_delay_audio_sound_heard
+            } else {
+              R.string.player_sheets_sub_delay_subtitle_voice_heard
+            },
+          ),
+        )
+      }
+      Button(
+        onClick = {
+          isDirectionPositive = if (isDirectionPositive == null) delayType != DelayType.Audio else null
+        },
+        modifier = Modifier.weight(1f).heightIn(min = 64.dp),
+        shape = rememberConnectedShape(1, 2, ConnectedLayout.Horizontal, tokens = AppConnectedControlShapeTokens),
+        enabled = delayControlEnabled && isDirectionPositive != (delayType == DelayType.Subtitle),
+      ) {
+        Text(
+          stringResource(
+            if (delayType == DelayType.Audio) {
+              R.string.player_sheets_sub_delay_sound_sound_spotted
+            } else {
+              R.string.player_sheets_sub_delay_subtitle_text_seen
+            },
+          ),
+        )
+      }
+    }
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(AppConnectedControlShapeTokens.spacing),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Button(
+        onClick = onApply,
+        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+        shape = rememberConnectedShape(0, 2, ConnectedLayout.Horizontal, tokens = AppConnectedControlShapeTokens),
+        enabled = actionsEnabled && isDirectionPositive == null,
+      ) {
+        Text(stringResource(R.string.player_sheets_delay_set_as_default))
+      }
+      FilledIconButton(
+        onClick = onReset,
+        modifier = Modifier.size(48.dp),
+        shape = rememberConnectedShape(1, 2, ConnectedLayout.Horizontal, tokens = AppConnectedControlShapeTokens),
+        enabled = actionsEnabled && isDirectionPositive == null,
+      ) {
+        Icon(Icons.RoundedFilled.Refresh, contentDescription = stringResource(R.string.generic_reset))
+      }
+    }
+  }
+}
+
+enum class DelayType {
+  Audio,
+  Subtitle,
+}

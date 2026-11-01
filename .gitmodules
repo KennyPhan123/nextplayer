@@ -1,0 +1,3 @@
+[submodule "external/Mpv-infinity"]
+	path = external/Mpv-infinity
+	url = https://github.com/ZHINFINITY/Mpv-infinity.git
