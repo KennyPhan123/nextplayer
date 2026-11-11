@@ -190,6 +190,8 @@
     <string name="properties">Properties</string>
     <string name="volume_boost">Volume boost</string>
     <string name="volume_boost_desc">Boost audio volume up to 200%</string>
+    <string name="smart_audio_processing">Smart audio &amp; anti-clipping</string>
+    <string name="smart_audio_processing_desc">Enhance 5.1/7.1 dialogue clarity, adapt bass for speakers or headphones, and prevent audio clipping</string>
     <string name="open_subtitle">Open local subtitle</string>
     <string name="no_subtitle_tracks_found">Subtitle tracks for this video are either unavailable or not supported.</string>
     <string name="no_audio_tracks_found">Audio tracks for this video are either unavailable or not supported.</string>

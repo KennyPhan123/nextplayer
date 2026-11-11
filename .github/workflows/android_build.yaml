@@ -10,6 +10,7 @@ on:
     paths-ignore:
       - 'nextplayer-latest/**'
       - '.github/workflows/nextplayer_latest_build.yaml'
+  workflow_dispatch:
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true

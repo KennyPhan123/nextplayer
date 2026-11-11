@@ -42,6 +42,7 @@ class AudioPreferencesViewModel @Inject constructor(
             AudioPreferencesUiEvent.ToggleShowSystemVolumePanel -> toggleShowSystemVolumePanel()
             AudioPreferencesUiEvent.ToggleRequireAudioFocus -> toggleRequireAudioFocus()
             AudioPreferencesUiEvent.ToggleVolumeBoost -> toggleVolumeBoost()
+            AudioPreferencesUiEvent.ToggleSmartAudioProcessing -> toggleSmartAudioProcessing()
         }
     }
 
@@ -90,6 +91,14 @@ class AudioPreferencesViewModel @Inject constructor(
             }
         }
     }
+
+    private fun toggleSmartAudioProcessing() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(enableSmartAudioProcessing = !it.enableSmartAudioProcessing)
+            }
+        }
+    }
 }
 
 @Stable
@@ -109,4 +118,5 @@ sealed interface AudioPreferencesUiEvent {
     data object ToggleShowSystemVolumePanel : AudioPreferencesUiEvent
     data object ToggleRequireAudioFocus : AudioPreferencesUiEvent
     data object ToggleVolumeBoost : AudioPreferencesUiEvent
+    data object ToggleSmartAudioProcessing : AudioPreferencesUiEvent
 }

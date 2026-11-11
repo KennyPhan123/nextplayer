@@ -124,7 +124,14 @@ private fun AudioPreferencesContent(
                     icon = NextIcons.VolumeUp,
                     isChecked = uiState.preferences.enableVolumeBoost,
                     onClick = { onEvent(AudioPreferencesUiEvent.ToggleVolumeBoost) },
-                    isLastItem = true
+                )
+                PreferenceSwitch(
+                    title = stringResource(id = R.string.smart_audio_processing),
+                    description = stringResource(id = R.string.smart_audio_processing_desc),
+                    icon = NextIcons.Sensitivity,
+                    isChecked = uiState.preferences.enableSmartAudioProcessing,
+                    onClick = { onEvent(AudioPreferencesUiEvent.ToggleSmartAudioProcessing) },
+                    isLastItem = true,
                 )
             }
         }
