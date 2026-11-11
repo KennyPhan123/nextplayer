@@ -64,7 +64,6 @@ class KodiAudioProcessor {
     var inputChannelCount: Int = 2
         private set
 
-    @C.PcmEncoding
     var inputEncoding: Int = C.ENCODING_PCM_FLOAT
         private set
 
@@ -92,7 +91,7 @@ class KodiAudioProcessor {
     fun configure(
         sampleRate: Int,
         inputChannelCount: Int,
-        @C.PcmEncoding inputEncoding: Int,
+        inputEncoding: Int,
     ): Int {
         this.sampleRate = sampleRate.coerceAtLeast(8000)
         this.inputChannelCount = inputChannelCount.coerceAtLeast(1)
@@ -408,14 +407,14 @@ class KodiAudioProcessor {
         outFrame[1] = right
     }
 
-    private fun getBytesPerSample(@C.PcmEncoding encoding: Int): Int = when (encoding) {
+    private fun getBytesPerSample(encoding: Int): Int = when (encoding) {
         C.ENCODING_PCM_16BIT -> 2
         C.ENCODING_PCM_24BIT -> 3
         C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> 4
         else -> 0
     }
 
-    private fun readSampleAsFloat(buffer: ByteBuffer, @C.PcmEncoding encoding: Int): Float {
+    private fun readSampleAsFloat(buffer: ByteBuffer, encoding: Int): Float {
         return when (encoding) {
             C.ENCODING_PCM_FLOAT -> {
                 val f = buffer.float

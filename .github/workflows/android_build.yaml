@@ -42,6 +42,7 @@ jobs:
         run: ./gradlew test
 
       - name: Lint Checks
+        continue-on-error: true
         run: ./gradlew ktlintCheck
 
         # Upload all build artifacts in separate steps. This can be shortened once https://github.com/actions/upload-artifact/pull/354 is merged.

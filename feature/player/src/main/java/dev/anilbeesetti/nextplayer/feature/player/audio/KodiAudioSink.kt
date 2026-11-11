@@ -30,7 +30,7 @@ class KodiAudioSink(
         return getFormatSupport(format) != AudioSink.SINK_FORMAT_UNSUPPORTED
     }
 
-    override fun getFormatSupport(format: Format): @AudioSink.SinkFormatSupport Int {
+    override fun getFormatSupport(format: Format): Int {
         if (MimeTypes.AUDIO_RAW == format.sampleMimeType && isSupportedLinearPcm(format.pcmEncoding)) {
             val outChannels = processor.resolveConfiguredOutputChannels(format.channelCount)
             val downstreamFormat = format.buildUpon()
@@ -118,7 +118,7 @@ class KodiAudioSink(
         processedDownstreamBuffer = null
     }
 
-    private fun isSupportedLinearPcm(@C.PcmEncoding encoding: Int): Boolean {
+    private fun isSupportedLinearPcm(encoding: Int): Boolean {
         return encoding == C.ENCODING_PCM_FLOAT ||
             encoding == C.ENCODING_PCM_16BIT ||
             encoding == C.ENCODING_PCM_24BIT ||
