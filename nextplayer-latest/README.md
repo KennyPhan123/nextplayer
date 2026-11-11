@@ -1,127 +1,60 @@
 ![Next player banner](fastlane/metadata/android/en-US/images/featureGraphic.png)
 
-# Next Player
+# Next Player (Latest Edition - KennyPhan123 Enhanced)
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/anilbeesetti/nextplayer.svg?logo=github&label=GitHub&cacheSeconds=3600)](https://github.com/anilbeesetti/nextplayer/releases/latest)
-[![Google Play](https://img.shields.io/endpoint?color=green&logo=google-play&url=https%3A%2F%2Fplay.cuzi.workers.dev%2Fplay%3Fi%3Ddev.anilbeesetti.nextplayer%26l%3DGoogle%2520Play%26m%3Dv%24version)](https://play.google.com/store/apps/details?id=dev.anilbeesetti.nextplayer)
-[![IzzyOnDroid](https://img.shields.io/endpoint?url=https://apt.izzysoft.de/fdroid/api/v1/shield/dev.anilbeesetti.nextplayer)](https://apt.izzysoft.de/fdroid/index/apk/dev.anilbeesetti.nextplayer)
-[![F-Droid](https://img.shields.io/f-droid/v/dev.anilbeesetti.nextplayer?logo=f-droid&label=F-Droid&cacheSeconds=3600)](https://f-droid.org/packages/dev.anilbeesetti.nextplayer)
-[![GitHub all releases](https://img.shields.io/github/downloads/anilbeesetti/nextplayer/total?logo=github&cacheSeconds=3600)](https://github.com/anilbeesetti/nextplayer/releases/latest)
-[![Google Play](https://img.shields.io/endpoint?color=green&logo=google-play&url=https%3A%2F%2Fplay.cuzi.workers.dev%2Fplay%3Fi%3Ddev.anilbeesetti.nextplayer%26l%3Ddownloads%26m%3D%24totalinstalls)](https://play.google.com/store/apps/details?id=dev.anilbeesetti.nextplayer)
-[![Weblate project translated](https://img.shields.io/weblate/progress/next-player?logo=weblate&logoColor=white&cacheSeconds=36000)](https://hosted.weblate.org/engage/next-player/)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/KennyPhan123/nextplayer.svg?logo=github&label=Latest%20Release&cacheSeconds=3600)](https://github.com/KennyPhan123/nextplayer/releases)
+[![Build Status](https://github.com/KennyPhan123/nextplayer/actions/workflows/nextplayer_latest_build.yaml/badge.svg)](https://github.com/KennyPhan123/nextplayer/actions/workflows/nextplayer_latest_build.yaml)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](LICENSE)
 
-Next Player is an Android native video player written in Kotlin. It provides a simple and easy-to-use interface for users to play videos on their
-Android devices
+An advanced, feature-rich Android native video player with expressive Material 3 UI, based on upstream [Next Player](https://github.com/anilbeesetti/nextplayer).
 
-**This project is still in development and is expected to have bugs. Please report any bugs you find in
-the [Issues](https://github.com/anilbeesetti/nextplayer/issues) section.**
+This edition combines upstream's modern architecture and UI improvements with custom cinematic enhancements: Dolby Vision fallback, Kodi-grade audio processing, independent aspect ratio zoom, and bitmap subtitle pinning.
 
-[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80"/>](https://play.google.com/store/apps/details?id=dev.anilbeesetti.nextplayer)
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height="80">](https://apt.izzysoft.de/fdroid/index/apk/dev.anilbeesetti.nextplayer)
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80">](https://f-droid.org/packages/dev.anilbeesetti.nextplayer/)
+---
 
-> For Github releases, you can verify the app with the SHA-256 fingerprint certificate: `D3:7C:AB:F3:67:6C:F5:82:24:FB:24:2C:8D:D2:09:12:9D:05:88:03:79:29:5F:AA:A6:D0:FB:60:7B:EC:13:1B`
+## 🚀 Key Features & Enhancements
 
-## Screenshots
+### 🔊 1. Kodi ActiveAE Audio Engine & Anti-Clipping Peak Limiter
+- **32-bit Float Internal Pipeline**: Decodes and mixes audio with full 32-bit float headroom (`C.ENCODING_PCM_FLOAT`). Eliminates harsh 16-bit clipping on high-dynamic-range theatrical tracks (TrueHD, DTS-HD MA, Dolby Atmos, E-AC3).
+- **Kodi `CAELimiter` DSP Port**: Genuine instant attack (0 ms), 25 ms hold, and 100 ms exponential release limiter. Allows distortion-free volume boosting up to 200% (+20 dB) without pumping or speaker damage.
+- **Smart Stereo Downmix (5.1 / 7.1 → 2.0)**:
+  - *Unnormalized Downmix*: Maintains full theatrical dialogue and effect presence instead of scaling volume down.
+  - *Dialogue Clarity Boost*: Accentuates center channel speech (`FC = 0.85f`).
+  - *Route-Aware LFE*: Automatically cuts sub-bass (0.0f) on internal phone speakers to prevent cone rattle, while maintaining 35% sub-bass on headphones.
 
-### Phone
+---
 
-<div style="width:100%; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+### 🎬 2. Dolby Vision Profile 7 (DV7) HDR10 Fallback
+- Strips incompatible DV7 metadata to smoothly fall back to HDR10 on devices (such as Exynos and various MediaTek chipsets) that otherwise produce black screens.
+- Toggle in **Settings → Player → Dolby Vision Profile 7 Fallback**.
 
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width=19% alt="Home folders">](fastlane/metadata/android/en-US/images/phoneScreenshots/1.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width=19% alt="Demo folder videos">](fastlane/metadata/android/en-US/images/phoneScreenshots/2.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width=19% alt="Quick settings">](fastlane/metadata/android/en-US/images/phoneScreenshots/3.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width=19% alt="Grid view">](fastlane/metadata/android/en-US/images/phoneScreenshots/4.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" width=19% alt="Search results">](fastlane/metadata/android/en-US/images/phoneScreenshots/6.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" width=19% alt="Add network connection">](fastlane/metadata/android/en-US/images/phoneScreenshots/7.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" width=19% alt="Appearance settings">](fastlane/metadata/android/en-US/images/phoneScreenshots/8.png)
-</div>
+---
 
-### Player UI
+### 🔍 3. Independent X / Y Zoom & Axis Snapping
+- Pinch to zoom or stretch video along horizontal (X) and vertical (Y) axes independently to fit ultra-wide (21:9) or custom aspect ratio displays.
+- Built-in axis snapping prevents unintended diagonal stretching. Custom zoom states persist automatically per video.
 
-<div style="width:100%; display:flex; justify-content:space-between;">
+---
 
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" width=49% alt="Phone player controls">](fastlane/metadata/android/en-US/images/phoneScreenshots/5.png)
-[<img src="fastlane/metadata/android/en-US/images/tvScreenshots/3.png" width=49% alt="TV player controls">](fastlane/metadata/android/en-US/images/tvScreenshots/3.png)
-</div>
+### 📝 4. Subtitle Enhancements & PGS Fixes
+- **PGS Subtitle Aspect Ratio Protection**: Bitmap subtitles (PGS, DVB) retain correct aspect ratios even when non-standard video zoom/stretching is active.
+- **Pin Subtitles to Video Surface (`subtitlePinToVideo`)**: Anchors subtitles to the video surface so they follow zoom and pan gestures seamlessly.
 
-### Android TV
+---
 
-<div style="width:100%; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+### 📱 5. PiP Fixes & Modern Controls
+- Allows manual Picture-in-Picture entry even when playback is paused.
+- Expressive Material 3 interface with customizable control button placement and gesture sensitivity.
 
-[<img src="fastlane/metadata/android/en-US/images/tvScreenshots/1.png" width=49% alt="TV home folders">](fastlane/metadata/android/en-US/images/tvScreenshots/1.png)
-[<img src="fastlane/metadata/android/en-US/images/tvScreenshots/2.png" width=49% alt="TV demo folder videos">](fastlane/metadata/android/en-US/images/tvScreenshots/2.png)
-[<img src="fastlane/metadata/android/en-US/images/tvScreenshots/4.png" width=49% alt="TV appearance settings">](fastlane/metadata/android/en-US/images/tvScreenshots/4.png)
-</div>
+---
 
-## Supported formats
+## 📥 Downloads
 
-- **Video**: H.263, H.264 AVC (Baseline Profile; Main Profile on Android 6+), H.265 HEVC, MPEG-4 SP, VP8, VP9, AV1
-    - Support depends on Android device
-- **Audio**: Vorbis, Opus, FLAC, ALAC, PCM/WAVE (μ-law, A-law), MP1, MP2, MP3, AMR (NB, WB), AAC (LC, ELD, HE; xHE on Android 9+), AC-3, E-AC-3, DTS,
-  DTS-HD, TrueHD
-    - Support provided by ExoPlayer FFmpeg extension
-- **Subtitles**: SRT, SSA, ASS, TTML, VTT, DVB
-    - SSA/ASS has limited styling support see [this issue](https://github.com/google/ExoPlayer/issues/8435)
+Download prebuilt APKs from the [Releases](https://github.com/KennyPhan123/nextplayer/releases) tab:
+- **`NextPlayer-latest-universal.apk`**: Release package for all Android devices.
 
-## Features
+---
 
-- Native Android app with simple and easy-to-use interface
-- Completely free and open source and without any ads or excessive permissions
-- Software decoders for h264 and hevc
-- Audio/Subtitle track selection
-- Vertical swipe to change brightness (left) / volume (right)
-- Horizontal swipe to seek through video
-- [Material 3 (You)](https://m3.material.io/) support
-- Media picker with tree, folder and file view modes
-- Play videos from url
-- Play videos from storage access framework (Android Document picker)
-- Control playback speed
-- External Subtitle support
-- Zoom gesture
-- Picture-in-picture mode
-- Background playback
-- Android TV version
-- Search Functionality
-- Subtitle delay
-- Network storage support (SMB/FTP/SFTP/WebDAV)
+## 📄 License
 
-## Planned Features
-
-- External Audio support
-- Online subtitles download
-
-## Contributing
-
-Contributions are welcome!
-
-### Developer documentation
-
-- [Runtime decoder switching](feature/player/DECODER_SWITCHING.md)
-
-### Translating
-
-You can help translate Next Player on [Hosted Weblate](https://hosted.weblate.org/engage/next-player/).
-
-[![Translate status](https://hosted.weblate.org/widgets/next-player/-/multi-auto.svg)](https://hosted.weblate.org/engage/next-player/)
-
-## Credits
-
-### Open Source Projects
-
-- [Findroid](https://github.com/jarnedemeulemeester/findroid)
-- [Just (Video) Player](https://github.com/moneytoo/Player)
-- [LibreTube](https://github.com/libre-tube/LibreTube)
-- [ReadYou](https://github.com/Ashinch/ReadYou)
-- [Seal](https://github.com/JunkFood02/Seal)
-- ...
-
-### Special Thanks
-
-[<img src="https://hosted.weblate.org/widgets/next-player/-/287x66-white.png"  width="200"/>](https://hosted.weblate.org/engage/next-player/)
-
-Thanks to **Weblate** for providing free hosting for the project.
-
-## License
-
-Next Player is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for more information.
+Next Player is licensed under the [GNU General Public License v3.0](LICENSE).
