@@ -35,12 +35,10 @@ class KodiAudioSink(
         return super.getFormatSupport(format)
     }
 
-    override fun configure(
-        inputFormat: Format,
-        specifiedBufferSize: Int,
-        outputChannels: IntArray?,
-    ) {
+    @Suppress("DEPRECATION")
+    override fun configure(audioSinkConfig: AudioSink.AudioSinkConfig) {
         clearPendingBuffers()
+        val inputFormat = audioSinkConfig.format
         if (MimeTypes.AUDIO_RAW == inputFormat.sampleMimeType &&
             isSupportedLinearPcm(inputFormat.pcmEncoding)
         ) {
@@ -54,28 +52,30 @@ class KodiAudioSink(
                 .setPcmEncoding(C.ENCODING_PCM_16BIT)
                 .setChannelCount(outChannels)
                 .build()
-            val downstreamOutputChannels =
-                if (outChannels != inputFormat.channelCount) null else outputChannels
+            val downstreamChannelMapping =
+                if (outChannels != inputFormat.channelCount) {
+                    null
+                } else {
+                    audioSinkConfig.outputChannelMapping
+                }
             val downstreamBufferSize =
                 if (outChannels != inputFormat.channelCount ||
                     inputFormat.pcmEncoding != C.ENCODING_PCM_16BIT
                 ) {
                     0
                 } else {
-                    specifiedBufferSize
+                    audioSinkConfig.preferredBufferSizeOverride
                 }
-            super.configure(
-                downstreamFormat,
-                downstreamBufferSize,
-                downstreamOutputChannels,
-            )
+            val downstreamConfig = AudioSink.AudioSinkConfig.Builder(downstreamFormat)
+                .setPreferredBufferSizeOverride(downstreamBufferSize)
+                .setOutputChannelMapping(downstreamChannelMapping)
+                .setTimeline(audioSinkConfig.timeline)
+                .setMediaPeriodId(audioSinkConfig.mediaPeriodId)
+                .build()
+            super.configure(downstreamConfig)
         } else {
             isPcmProcessingActive = false
-            super.configure(
-                inputFormat,
-                specifiedBufferSize,
-                outputChannels,
-            )
+            super.configure(audioSinkConfig)
         }
     }
 
