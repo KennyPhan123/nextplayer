@@ -50,7 +50,6 @@ import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
 import dev.anilbeesetti.nextplayer.feature.player.audio.AudioOutputRouteDetector
 import dev.anilbeesetti.nextplayer.feature.player.audio.KodiAudioProcessor
-import dev.anilbeesetti.nextplayer.feature.player.audio.KodiAudioSink
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioTrackIndex
 import dev.anilbeesetti.nextplayer.feature.player.extensions.copy
@@ -539,13 +538,12 @@ class PlayerService : MediaSessionService() {
                 context: android.content.Context,
                 enableFloatOutput: Boolean,
                 enableAudioOutputPlaybackParams: Boolean,
-            ): androidx.media3.exoplayer.audio.AudioSink? {
-                val defaultSink = super.buildAudioSink(
-                    context,
-                    /* enableFloatOutput = */ false,
-                    enableAudioOutputPlaybackParams,
-                ) ?: return null
-                return KodiAudioSink(defaultSink, kodiAudioProcessor)
+            ): androidx.media3.exoplayer.audio.AudioSink {
+                return androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioOutputPlaybackParams)
+                    .setAudioProcessors(arrayOf(kodiAudioProcessor))
+                    .build()
             }
 
             override fun getCodecAdapterFactory(): androidx.media3.exoplayer.mediacodec.MediaCodecAdapter.Factory {

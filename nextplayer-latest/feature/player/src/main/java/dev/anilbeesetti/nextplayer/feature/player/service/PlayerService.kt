@@ -31,6 +31,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
@@ -66,7 +67,6 @@ import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
 import dev.anilbeesetti.nextplayer.feature.player.audio.AudioOutputRouteDetector
 import dev.anilbeesetti.nextplayer.feature.player.audio.KodiAudioProcessor
-import dev.anilbeesetti.nextplayer.feature.player.audio.KodiAudioSink
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioDecoderMode
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioTrackIndex
@@ -832,16 +832,12 @@ class PlayerService : MediaSessionService() {
                 context: Context,
                 enableFloatOutput: Boolean,
                 enableAudioOutputPlaybackParams: Boolean,
-            ): AudioSink? {
-                val defaultSink = super.buildAudioSink(
-                    context,
-                    false,
-                    enableAudioOutputPlaybackParams,
-                ) ?: return null
-                return KodiAudioSink(
-                    delegateSink = defaultSink,
-                    processor = kodiAudioProcessor,
-                )
+            ): AudioSink {
+                return DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
+                    .setAudioProcessors(arrayOf(kodiAudioProcessor))
+                    .build()
             }
 
             override fun getCodecAdapterFactory(): MediaCodecAdapter.Factory {

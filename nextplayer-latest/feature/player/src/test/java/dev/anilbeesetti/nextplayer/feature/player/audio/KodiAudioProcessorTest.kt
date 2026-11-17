@@ -1,6 +1,7 @@
 package dev.anilbeesetti.nextplayer.feature.player.audio
 
 import androidx.media3.common.C
+import androidx.media3.common.audio.AudioProcessor
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
@@ -138,32 +139,51 @@ class KodiAudioProcessorTest {
     }
 
     @Test
-    fun processByteBuffer_floatInputToPcm16Output_preservesCallerBufferPosition() {
+    fun queueInput_51Pcm16WithBigEndianBufferOrder_downmixesCleanlyToStereo() {
         val processor = KodiAudioProcessor().apply {
             smartAudioEnabled = true
             routeMode = AudioOutputRouteMode.SPEAKER
             gainMillibels = 0
-            configure(
-                sampleRate = 48000,
-                inputChannelCount = 6,
-                inputEncoding = C.ENCODING_PCM_FLOAT,
-            )
         }
 
-        val inputBuffer = ByteBuffer.allocateDirect(6 * 4).order(ByteOrder.nativeOrder())
-        inputBuffer.putFloat(0.5f)
-        inputBuffer.putFloat(-0.5f)
-        inputBuffer.putFloat(0.0f)
-        inputBuffer.putFloat(0.0f)
-        inputBuffer.putFloat(0.0f)
-        inputBuffer.putFloat(0.0f)
-        inputBuffer.flip()
+        val outFormat = processor.configure(
+            AudioProcessor.AudioFormat(
+                48000,
+                6,
+                C.ENCODING_PCM_16BIT,
+            ),
+        )
+        @Suppress("DEPRECATION")
+        processor.flush()
 
-        val outputBuffer = processor.process(inputBuffer)
+        assertEquals(
+            2,
+            outFormat.channelCount,
+        )
+        assertEquals(
+            C.ENCODING_PCM_16BIT,
+            outFormat.encoding,
+        )
+
+        // Write Little-Endian 16-bit PCM bytes, then wrap in a BIG_ENDIAN ByteBuffer
+        // (matching JNI NewDirectByteBuffer returned by MediaCodec.getOutputBuffer).
+        val rawBuffer = ByteBuffer.allocateDirect(6 * 2).order(ByteOrder.LITTLE_ENDIAN)
+        rawBuffer.putShort(16384)
+        rawBuffer.putShort(-16384)
+        rawBuffer.putShort(0)
+        rawBuffer.putShort(0)
+        rawBuffer.putShort(0)
+        rawBuffer.putShort(0)
+        rawBuffer.flip()
+        val bigEndianView = rawBuffer.order(ByteOrder.BIG_ENDIAN)
+
+        processor.queueInput(bigEndianView)
         assertEquals(
             0,
-            inputBuffer.position(),
+            bigEndianView.remaining(),
         )
+
+        val outputBuffer = processor.output
         assertEquals(
             4,
             outputBuffer.remaining(),

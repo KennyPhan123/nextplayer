@@ -1,9 +1,10 @@
 package dev.anilbeesetti.nextplayer.feature.player.audio
 
 import androidx.media3.common.C
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.pow
@@ -12,10 +13,10 @@ import kotlin.math.roundToInt
 /**
  * Ports Kodi's ActiveAE audio processing pipeline (`CAELimiter` + `CActiveAEResampleFFMPEG`
  * multichannel downmixing + `VideoPlayerAudio.cpp` Center Mix Level & +60 dB Volume Amplification)
- * to NextPlayer.
+ * to NextPlayer as a Media3 [BaseAudioProcessor].
  */
 @UnstableApi
-class KodiAudioProcessor {
+class KodiAudioProcessor : BaseAudioProcessor() {
 
     @Volatile
     var smartAudioEnabled: Boolean = true
@@ -66,7 +67,7 @@ class KodiAudioProcessor {
     var inputChannelCount: Int = 2
         private set
 
-    var inputEncoding: Int = C.ENCODING_PCM_FLOAT
+    var inputEncoding: Int = C.ENCODING_PCM_16BIT
         private set
 
     var configuredOutputChannelCount: Int = 2
@@ -76,7 +77,6 @@ class KodiAudioProcessor {
     private var holdCounter: Int = 0
     private var increase: Float = 0.0f
 
-    private var outputBuffer: ByteBuffer = EMPTY_BUFFER
     private var inFrameScratch = FloatArray(MAX_CHANNELS)
     private var outFrameScratch = FloatArray(MAX_CHANNELS)
 
@@ -87,6 +87,27 @@ class KodiAudioProcessor {
         } else {
             2
         }
+    }
+
+    override fun onConfigure(
+        inputAudioFormat: AudioProcessor.AudioFormat,
+    ): AudioProcessor.AudioFormat {
+        if (!isSupportedEncoding(inputAudioFormat.encoding)) {
+            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+        }
+        if (inputAudioFormat.channelCount <= 0 || inputAudioFormat.sampleRate <= 0) {
+            return AudioProcessor.AudioFormat.NOT_SET
+        }
+        val outChannels = configure(
+            sampleRate = inputAudioFormat.sampleRate,
+            inputChannelCount = inputAudioFormat.channelCount,
+            inputEncoding = inputAudioFormat.encoding,
+        )
+        return AudioProcessor.AudioFormat(
+            inputAudioFormat.sampleRate,
+            outChannels,
+            C.ENCODING_PCM_16BIT,
+        )
     }
 
     fun configure(
@@ -108,61 +129,41 @@ class KodiAudioProcessor {
         return this.configuredOutputChannelCount
     }
 
-    fun flush() {
-        resetLimiterState()
-        outputBuffer = EMPTY_BUFFER
-    }
-
-    fun reset() {
-        flush()
-        sampleRate = 48000
-        inputChannelCount = 2
-        configuredOutputChannelCount = 2
-        inputEncoding = C.ENCODING_PCM_FLOAT
-    }
-
-    private fun resetLimiterState() {
-        attenuation = 1.0f
-        holdCounter = 0
-        increase = 0.0f
-    }
-
-    fun process(input: ByteBuffer): ByteBuffer {
+    override fun queueInput(inputBuffer: ByteBuffer) {
+        val position = inputBuffer.position()
+        val limit = inputBuffer.limit()
+        val remainingBytes = limit - position
         val bytesPerInputSample = getBytesPerSample(inputEncoding)
-        val inputFrameSize = bytesPerInputSample * inputChannelCount
-        val remainingBytes = input.remaining()
+        val inChannels = inputChannelCount
+        val inputFrameSize = bytesPerInputSample * inChannels
         if (inputFrameSize <= 0 || remainingBytes < inputFrameSize) {
-            return EMPTY_BUFFER
+            inputBuffer.position(limit)
+            return
         }
 
         val numFrames = remainingBytes / inputFrameSize
-        val outputFrameSize = 2 * configuredOutputChannelCount
-        val requiredOutputBytes = numFrames * outputFrameSize
-
-        if (outputBuffer.capacity() < requiredOutputBytes) {
-            outputBuffer = ByteBuffer.allocateDirect(requiredOutputBytes).order(ByteOrder.nativeOrder())
-        } else {
-            outputBuffer.clear()
-        }
-
-        val slice = input.slice().order(input.order())
-        val inChannels = inputChannelCount
         val outChannels = configuredOutputChannelCount
+        val outputFrameSize = 2 * outChannels
+        val requiredOutputBytes = numFrames * outputFrameSize
+        val outBuffer = replaceOutputBuffer(requiredOutputBytes)
+
         val activeRoute = routeMode
         val isSmart = smartAudioEnabled
         val currentCenterGain = centerMixGain
         val currentAmplify = amplify
         val useLimiter = isSmart || currentAmplify > 1.0001f || centerMixLevelDb > 0
-
         val shouldDownmixToStereo =
             inChannels > 2 && activeRoute != AudioOutputRouteMode.MULTICHANNEL_OR_SPATIAL
 
+        var readOffset = position
         for (frameIndex in 0 until numFrames) {
             for (ch in 0 until inChannels) {
-                inFrameScratch[ch] = readSampleAsFloat(
-                    buffer = slice,
+                inFrameScratch[ch] = readSampleAsFloatLe(
+                    buffer = inputBuffer,
+                    offset = readOffset,
                     encoding = inputEncoding,
                 )
+                readOffset += bytesPerInputSample
             }
 
             val activeMixChannels: Int
@@ -217,12 +218,46 @@ class KodiAudioProcessor {
                         maximumValue = Short.MAX_VALUE.toInt(),
                     )
                     .toShort()
-                outputBuffer.putShort(pcm16)
+                outBuffer.putShort(pcm16)
             }
         }
 
-        outputBuffer.flip()
-        return outputBuffer
+        inputBuffer.position(limit)
+        outBuffer.flip()
+    }
+
+    @Suppress("DEPRECATION")
+    @Deprecated("Deprecated in BaseAudioProcessor")
+    override fun onFlush() {
+        if (inputAudioFormat != AudioProcessor.AudioFormat.NOT_SET) {
+            configure(
+                sampleRate = inputAudioFormat.sampleRate,
+                inputChannelCount = inputAudioFormat.channelCount,
+                inputEncoding = inputAudioFormat.encoding,
+            )
+            if (outputAudioFormat != AudioProcessor.AudioFormat.NOT_SET) {
+                configuredOutputChannelCount = outputAudioFormat.channelCount
+                if (outFrameScratch.size < configuredOutputChannelCount) {
+                    outFrameScratch = FloatArray(configuredOutputChannelCount)
+                }
+            }
+        } else {
+            resetLimiterState()
+        }
+    }
+
+    override fun onReset() {
+        resetLimiterState()
+        sampleRate = 48000
+        inputChannelCount = 2
+        configuredOutputChannelCount = 2
+        inputEncoding = C.ENCODING_PCM_16BIT
+    }
+
+    private fun resetLimiterState() {
+        attenuation = 1.0f
+        holdCounter = 0
+        increase = 0.0f
     }
 
     fun processFloatInterleaved(
@@ -422,6 +457,12 @@ class KodiAudioProcessor {
         outFrame[1] = right
     }
 
+    private fun isSupportedEncoding(encoding: Int): Boolean =
+        encoding == C.ENCODING_PCM_16BIT ||
+            encoding == C.ENCODING_PCM_24BIT ||
+            encoding == C.ENCODING_PCM_32BIT ||
+            encoding == C.ENCODING_PCM_FLOAT
+
     private fun getBytesPerSample(encoding: Int): Int = when (encoding) {
         C.ENCODING_PCM_16BIT -> 2
         C.ENCODING_PCM_24BIT -> 3
@@ -429,29 +470,43 @@ class KodiAudioProcessor {
         else -> 0
     }
 
-    private fun readSampleAsFloat(
+    private fun readSampleAsFloatLe(
         buffer: ByteBuffer,
+        offset: Int,
         encoding: Int,
     ): Float = when (encoding) {
+        C.ENCODING_PCM_16BIT -> {
+            val b0 = buffer.get(offset).toInt() and 0xFF
+            val b1 = buffer.get(offset + 1).toInt()
+            val sample16 = (b1 shl 8) or b0
+            sample16 / 32768.0f
+        }
+
         C.ENCODING_PCM_FLOAT -> {
-            val f = buffer.float
+            val b0 = buffer.get(offset).toInt() and 0xFF
+            val b1 = buffer.get(offset + 1).toInt() and 0xFF
+            val b2 = buffer.get(offset + 2).toInt() and 0xFF
+            val b3 = buffer.get(offset + 3).toInt() and 0xFF
+            val bits = (b3 shl 24) or (b2 shl 16) or (b1 shl 8) or b0
+            val f = Float.fromBits(bits)
             if (f.isFinite()) f else 0.0f
         }
 
-        C.ENCODING_PCM_16BIT -> {
-            buffer.short / 32768.0f
-        }
-
         C.ENCODING_PCM_24BIT -> {
-            val b0 = buffer.get().toInt() and 0xFF
-            val b1 = buffer.get().toInt() and 0xFF
-            val b2 = buffer.get().toInt()
+            val b0 = buffer.get(offset).toInt() and 0xFF
+            val b1 = buffer.get(offset + 1).toInt() and 0xFF
+            val b2 = buffer.get(offset + 2).toInt()
             val sample24 = (b2 shl 16) or (b1 shl 8) or b0
             sample24 / 8388608.0f
         }
 
         C.ENCODING_PCM_32BIT -> {
-            buffer.int / 2147483648.0f
+            val b0 = buffer.get(offset).toInt() and 0xFF
+            val b1 = buffer.get(offset + 1).toInt() and 0xFF
+            val b2 = buffer.get(offset + 2).toInt() and 0xFF
+            val b3 = buffer.get(offset + 3).toInt()
+            val sample32 = (b3 shl 24) or (b2 shl 16) or (b1 shl 8) or b0
+            sample32 / 2147483648.0f
         }
 
         else -> 0.0f
@@ -481,8 +536,5 @@ class KodiAudioProcessor {
         const val SMART_HEADPHONE_SURROUND_GAIN = 0.70710677f
         const val SMART_HEADPHONE_LFE_GAIN = 0.35f
         const val BACK_CENTER_GAIN = 0.50f
-
-        private val EMPTY_BUFFER: ByteBuffer =
-            ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }
