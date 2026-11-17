@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
-import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -31,6 +30,7 @@ import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
@@ -64,6 +64,9 @@ import dev.anilbeesetti.nextplayer.core.model.Resume
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
+import dev.anilbeesetti.nextplayer.feature.player.audio.AudioOutputRouteDetector
+import dev.anilbeesetti.nextplayer.feature.player.audio.KodiAudioProcessor
+import dev.anilbeesetti.nextplayer.feature.player.audio.KodiAudioSink
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioDecoderMode
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioTrackIndex
@@ -133,7 +136,8 @@ class PlayerService : MediaSessionService() {
     private var isMediaItemReady = false
     private var pendingAudioSelection: Pair<String, Uri>? = null
 
-    private var loudnessEnhancer: LoudnessEnhancer? = null
+    private val kodiAudioProcessor = KodiAudioProcessor()
+    private var audioOutputRouteDetector: AudioOutputRouteDetector? = null
     private var currentVolumeGain: Int = 0
 
     private lateinit var decoderManager: DecoderManager
@@ -476,29 +480,23 @@ class PlayerService : MediaSessionService() {
             super.onAudioSessionIdChanged(audioSessionId)
             if (!playerPreferences.enableVolumeBoost) return
             if (audioSessionId == C.AUDIO_SESSION_ID_UNSET) return
-            try {
-                loudnessEnhancer?.release()
-                loudnessEnhancer = LoudnessEnhancer(audioSessionId)
-                if (currentVolumeGain > 0) {
-                    setEnhancerTargetGain(gain = currentVolumeGain)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                loudnessEnhancer = null
+            if (currentVolumeGain > 0) {
+                setEnhancerTargetGain(gain = currentVolumeGain)
             }
         }
     }
 
     private fun setEnhancerTargetGain(gain: Int) {
-        val enhancer = loudnessEnhancer ?: return
-
-        try {
-            enhancer.setTargetGain(gain)
-            enhancer.enabled = gain > 0
-            currentVolumeGain = enhancer.targetGain.toInt()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        val targetGain = if (playerPreferences.enableVolumeBoost) {
+            gain.coerceIn(
+                minimumValue = 0,
+                maximumValue = KodiAudioProcessor.MAX_GAIN_MILLIBELS,
+            )
+        } else {
+            0
         }
+        kodiAudioProcessor.gainMillibels = targetGain
+        currentVolumeGain = kodiAudioProcessor.gainMillibels
     }
 
     private val mediaSessionCallback = object : MediaSession.Callback {
@@ -669,7 +667,7 @@ class PlayerService : MediaSessionService() {
                 }
 
                 CustomCommands.IS_LOUDNESS_GAIN_SUPPORTED -> {
-                    val isSupported = loudnessEnhancer != null
+                    val isSupported = playerPreferences.enableVolumeBoost
                     return@future SessionResult(
                         SessionResult.RESULT_SUCCESS,
                         Bundle().apply {
@@ -807,10 +805,45 @@ class PlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        kodiAudioProcessor.smartAudioEnabled = playerPreferences.enableSmartAudioProcessing
+        kodiAudioProcessor.centerMixLevelDb = playerPreferences.centerMixLevelDb
+        audioOutputRouteDetector = AudioOutputRouteDetector(
+            context = applicationContext,
+            onRouteChanged = { routeMode ->
+                kodiAudioProcessor.routeMode = routeMode
+            },
+        ).also { it.start() }
+
+        serviceScope.launch {
+            preferencesRepository.playerPreferences.collect { prefs ->
+                kodiAudioProcessor.smartAudioEnabled = prefs.enableSmartAudioProcessing
+                kodiAudioProcessor.centerMixLevelDb = prefs.centerMixLevelDb
+                if (!prefs.enableVolumeBoost && currentVolumeGain != 0) {
+                    setEnhancerTargetGain(gain = 0)
+                }
+            }
+        }
+
         decoderManager = DecoderManager()
         val renderersFactory = object : NextRenderersFactory(
             context = applicationContext,
         ) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioOutputPlaybackParams: Boolean,
+            ): AudioSink? {
+                val defaultSink = super.buildAudioSink(
+                    context,
+                    false,
+                    enableAudioOutputPlaybackParams,
+                ) ?: return null
+                return KodiAudioSink(
+                    delegateSink = defaultSink,
+                    processor = kodiAudioProcessor,
+                )
+            }
+
             override fun getCodecAdapterFactory(): MediaCodecAdapter.Factory {
                 val defaultFactory = super.getCodecAdapterFactory()
                 return MediaCodecAdapter.Factory { configuration ->
@@ -980,8 +1013,8 @@ class PlayerService : MediaSessionService() {
     override fun onDestroy() {
         super.onDestroy()
         artworkLoadJob?.cancel()
-        loudnessEnhancer?.release()
-        loudnessEnhancer = null
+        audioOutputRouteDetector?.stop()
+        audioOutputRouteDetector = null
         mediaSession?.run {
             player.clearMediaItems()
             player.stop()

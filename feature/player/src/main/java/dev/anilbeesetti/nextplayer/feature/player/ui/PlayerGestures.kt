@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import dev.anilbeesetti.nextplayer.core.model.DoubleTapGesture
 import dev.anilbeesetti.nextplayer.feature.player.extensions.detectCustomHorizontalDragGestures
 import dev.anilbeesetti.nextplayer.feature.player.extensions.detectCustomTransformGestures
 import dev.anilbeesetti.nextplayer.feature.player.extensions.detectCustomVerticalDragGestures
@@ -41,6 +42,11 @@ fun PlayerGestures(
                         },
                         onDoubleTap = {
                             if (controlsVisibilityState.controlsLocked) return@detectTapGestures
+                            if (tapGestureState.doubleTapGesture == DoubleTapGesture.LOCK_CONTROLS) {
+                                controlsVisibilityState.showControls()
+                                controlsVisibilityState.lockControls()
+                                return@detectTapGestures
+                            }
                             tapGestureState.handleDoubleTap(offset = it, size = size)
                         },
                         onPress = {
@@ -84,11 +90,13 @@ fun PlayerGestures(
                 .pointerInput(
                     controlsVisibilityState.controlsLocked,
                     pictureInPictureState.isInPictureInPictureMode,
+                    videoZoomAndContentScaleState.independentAxisZoom,
                 ) {
                     if (controlsVisibilityState.controlsLocked) return@pointerInput
                     if (pictureInPictureState.isInPictureInPictureMode) return@pointerInput
 
                     detectCustomTransformGestures(
+                        independentZoom = videoZoomAndContentScaleState.independentAxisZoom,
                         onGesture = { _, panChange, zoomChange, _ ->
                             if (tapGestureState.isLongPressGestureInAction) return@detectCustomTransformGestures
                             videoZoomAndContentScaleState.onZoomPanGesture(

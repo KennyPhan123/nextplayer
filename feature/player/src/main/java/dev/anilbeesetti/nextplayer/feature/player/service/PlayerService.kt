@@ -519,6 +519,7 @@ class PlayerService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         kodiAudioProcessor.smartAudioEnabled = playerPreferences.enableSmartAudioProcessing
+        kodiAudioProcessor.centerMixLevelDb = playerPreferences.centerMixLevelDb
         audioOutputRouteDetector = AudioOutputRouteDetector(applicationContext) { routeMode ->
             kodiAudioProcessor.routeMode = routeMode
         }.also { it.start() }
@@ -526,6 +527,7 @@ class PlayerService : MediaSessionService() {
         serviceScope.launch {
             preferencesRepository.playerPreferences.collect { prefs ->
                 kodiAudioProcessor.smartAudioEnabled = prefs.enableSmartAudioProcessing
+                kodiAudioProcessor.centerMixLevelDb = prefs.centerMixLevelDb
                 if (!prefs.enableVolumeBoost && currentVolumeGain != 0) {
                     setEnhancerTargetGain(0)
                 }

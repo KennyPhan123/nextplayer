@@ -58,6 +58,7 @@ fun DoubleTapIndicator(modifier: Modifier = Modifier, tapGestureState: TapGestur
                         DoubleTapGesture.PLAY_PAUSE -> 0f
                         DoubleTapGesture.FAST_FORWARD_AND_REWIND -> 0.5f
                         DoubleTapGesture.BOTH -> 0.35f
+                        DoubleTapGesture.LOCK_CONTROLS -> 0f
                         DoubleTapGesture.NONE -> 0f
                     },
                 )

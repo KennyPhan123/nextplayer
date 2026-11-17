@@ -83,7 +83,9 @@ class TapGestureState(
 
             DoubleTapGesture.PLAY_PAUSE -> DoubleTapAction.PLAY_PAUSE
 
-            DoubleTapGesture.NONE -> return
+            DoubleTapGesture.LOCK_CONTROLS,
+            DoubleTapGesture.NONE,
+            -> return
         }
 
         when (action) {

@@ -54,6 +54,10 @@ class AudioPreferencesViewModel(
             is AudioPreferencesUiEvent.ToggleRequireAudioFocus -> toggleRequireAudioFocus()
 
             is AudioPreferencesUiEvent.ToggleVolumeBoost -> toggleVolumeBoost()
+
+            is AudioPreferencesUiEvent.ToggleSmartAudioProcessing -> toggleSmartAudioProcessing()
+
+            is AudioPreferencesUiEvent.UpdateCenterMixLevel -> updateCenterMixLevel(action.value)
         }
     }
 
@@ -100,6 +104,27 @@ class AudioPreferencesViewModel(
             }
         }
     }
+
+    private fun toggleSmartAudioProcessing() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(enableSmartAudioProcessing = !it.enableSmartAudioProcessing)
+            }
+        }
+    }
+
+    private fun updateCenterMixLevel(value: Int) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(
+                    centerMixLevelDb = value.coerceIn(
+                        minimumValue = PlayerPreferences.MIN_CENTER_MIX_LEVEL_DB,
+                        maximumValue = PlayerPreferences.MAX_CENTER_MIX_LEVEL_DB,
+                    ),
+                )
+            }
+        }
+    }
 }
 
 @Stable
@@ -121,4 +146,6 @@ sealed interface AudioPreferencesUiEvent {
     data object ToggleShowSystemVolumePanel : AudioPreferencesUiEvent
     data object ToggleRequireAudioFocus : AudioPreferencesUiEvent
     data object ToggleVolumeBoost : AudioPreferencesUiEvent
+    data object ToggleSmartAudioProcessing : AudioPreferencesUiEvent
+    data class UpdateCenterMixLevel(val value: Int) : AudioPreferencesUiEvent
 }

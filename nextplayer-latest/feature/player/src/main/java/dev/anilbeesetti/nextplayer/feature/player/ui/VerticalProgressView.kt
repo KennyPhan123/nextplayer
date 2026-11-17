@@ -45,7 +45,7 @@ fun VerticalProgressView(
     icon: Painter,
     @IntRange(
         from = 0,
-        to = 200,
+        to = 400,
     ) value: Int,
     maxValue: Int = NORMAL_MAX_PERCENTAGE,
     boostColor: Color = Color(color = 0xFFFC6E6E),

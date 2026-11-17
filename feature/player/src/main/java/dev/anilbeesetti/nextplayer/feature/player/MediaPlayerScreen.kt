@@ -152,6 +152,7 @@ fun MediaPlayerScreen(
         player = player,
         initialContentScale = playerPreferences.playerVideoZoom,
         enableZoomGesture = playerPreferences.useZoomControls,
+        independentAxisZoom = playerPreferences.independentAxisZoom,
         enablePanGesture = playerPreferences.enablePanGesture,
         onEvent = viewModel::onVideoZoomEvent,
     )

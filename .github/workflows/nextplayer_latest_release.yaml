@@ -63,6 +63,10 @@ jobs:
           fi
           mkdir -p release-artifact
           cp "$apk" release-artifact/NextPlayer-latest-universal.apk
+          arm64_apk=$(find app/build/outputs/apk -name 'app-arm64-v8a-*.apk' -print -quit)
+          if [ -n "$arm64_apk" ]; then
+            cp "$arm64_apk" release-artifact/NextPlayer-latest-arm64-v8a.apk
+          fi
 
       - name: Upload universal release APK
         uses: actions/upload-artifact@v7
@@ -70,3 +74,10 @@ jobs:
           name: NextPlayer-latest-universal-release
           path: nextplayer-latest/release-artifact/NextPlayer-latest-universal.apk
           if-no-files-found: error
+
+      - name: Upload arm64-v8a release APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: NextPlayer-latest-arm64-v8a-release
+          path: nextplayer-latest/release-artifact/NextPlayer-latest-arm64-v8a.apk
+          if-no-files-found: ignore

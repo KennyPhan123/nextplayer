@@ -11,6 +11,7 @@ fun DoubleTapGesture.name(): String {
         DoubleTapGesture.PLAY_PAUSE -> R.string.play_pause
         DoubleTapGesture.FAST_FORWARD_AND_REWIND -> R.string.ff_rewind
         DoubleTapGesture.BOTH -> R.string.play_pause_ff_rewind
+        DoubleTapGesture.LOCK_CONTROLS -> R.string.controls_lock
         DoubleTapGesture.NONE -> R.string.none
     }
 

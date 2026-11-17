@@ -44,6 +44,7 @@ class GesturePreferencesViewModel @Inject constructor(
             GesturePreferencesUiEvent.ToggleEnableVolumeSwipeGesture -> toggleEnableVolumeSwipeGesture()
             GesturePreferencesUiEvent.ToggleUseSeekControls -> toggleUseSeekControls()
             GesturePreferencesUiEvent.ToggleUseZoomControls -> toggleUseZoomControls()
+            GesturePreferencesUiEvent.ToggleIndependentAxisZoom -> toggleIndependentAxisZoom()
             GesturePreferencesUiEvent.ToggleEnablePanGesture -> toggleEnablePanGesture()
             is GesturePreferencesUiEvent.UpdateLongPressControlsSpeed -> updateLongPressControlsSpeed(event.value)
             is GesturePreferencesUiEvent.UpdateSeekIncrement -> updateSeekIncrement(event.value)
@@ -121,6 +122,14 @@ class GesturePreferencesViewModel @Inject constructor(
         }
     }
 
+    private fun toggleIndependentAxisZoom() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(independentAxisZoom = !it.independentAxisZoom)
+            }
+        }
+    }
+
     private fun toggleEnablePanGesture() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
@@ -188,6 +197,7 @@ sealed interface GesturePreferencesUiEvent {
     data object ToggleEnableVolumeSwipeGesture : GesturePreferencesUiEvent
     data object ToggleUseSeekControls : GesturePreferencesUiEvent
     data object ToggleUseZoomControls : GesturePreferencesUiEvent
+    data object ToggleIndependentAxisZoom : GesturePreferencesUiEvent
     data object ToggleEnablePanGesture : GesturePreferencesUiEvent
     data class UpdateLongPressControlsSpeed(val value: Float) : GesturePreferencesUiEvent
     data class UpdateSeekIncrement(val value: Int) : GesturePreferencesUiEvent

@@ -12,6 +12,7 @@ import dev.anilbeesetti.nextplayer.settings.utils.tvFocusDown
 import dev.anilbeesetti.nextplayer.settings.utils.tvListFocus
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
@@ -26,16 +27,19 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.ClickablePreferenceItem
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
 import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
+import dev.anilbeesetti.nextplayer.core.ui.components.PreferenceSlider
 import dev.anilbeesetti.nextplayer.core.ui.components.PreferenceSwitch
 import dev.anilbeesetti.nextplayer.core.ui.components.RadioTextButton
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
 import dev.anilbeesetti.nextplayer.settings.composables.OptionsDialog
 import dev.anilbeesetti.nextplayer.settings.utils.LocalesHelper
+import kotlin.math.roundToInt
 
 @Composable
 fun AudioPreferencesScreen(
@@ -131,7 +135,43 @@ private fun AudioPreferencesContent(
                     icon = NextIcons.Sensitivity,
                     isChecked = uiState.preferences.enableSmartAudioProcessing,
                     onClick = { onEvent(AudioPreferencesUiEvent.ToggleSmartAudioProcessing) },
+                )
+                PreferenceSlider(
+                    title = stringResource(id = R.string.downmix_center_mix_level),
+                    description = stringResource(
+                        id = R.string.center_mix_level_db,
+                        uiState.preferences.centerMixLevelDb,
+                    ),
+                    icon = NextIcons.Audio,
+                    value = uiState.preferences.centerMixLevelDb.toFloat(),
+                    valueRange = PlayerPreferences.MIN_CENTER_MIX_LEVEL_DB.toFloat()..PlayerPreferences.MAX_CENTER_MIX_LEVEL_DB.toFloat(),
+                    onValueChange = {
+                        onEvent(AudioPreferencesUiEvent.UpdateCenterMixLevel(it.roundToInt()))
+                    },
+                    onReset = {
+                        onEvent(
+                            AudioPreferencesUiEvent.UpdateCenterMixLevel(
+                                PlayerPreferences.DEFAULT_CENTER_MIX_LEVEL_DB,
+                            ),
+                        )
+                    },
                     isLastItem = true,
+                    trailingContent = {
+                        FilledIconButton(
+                            onClick = {
+                                onEvent(
+                                    AudioPreferencesUiEvent.UpdateCenterMixLevel(
+                                        PlayerPreferences.DEFAULT_CENTER_MIX_LEVEL_DB,
+                                    ),
+                                )
+                            },
+                        ) {
+                            Icon(
+                                imageVector = NextIcons.History,
+                                contentDescription = stringResource(id = R.string.reset_center_mix_level),
+                            )
+                        }
+                    },
                 )
             }
         }

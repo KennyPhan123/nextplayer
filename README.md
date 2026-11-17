@@ -21,10 +21,10 @@ Ported directly from Kodi's (`xbmc/cores/AudioEngine`) audio architecture:
   - **Instant Attack (0 ms)**: Catches full-scale transients in the exact sample frame before clipping can occur.
   - **25 ms Hold Counter**: Eliminates flutter and pumping artifacts during intense action or explosion sequences.
   - **100 ms Exponential Release**: Smoothly restores natural dynamic range following human psychoacoustic curves.
-  - **Zero-Clipping Volume Boost (up to 200% / +20 dB)**: Amplify quiet movies without any audio distortion or speaker rattle.
+  - **Zero-Clipping Volume Boost (up to 400% / +60 dB)**: Matches Kodi's maximum `+60.0 dB` (`1000x` linear gain) amplification limit, allowing quiet movies to be boosted without audio distortion or speaker rattle.
 - **Smart Stereo Downmixing (5.1 / 7.1 -> 2.0)**:
   - **Unnormalized Downmix**: Preserves original theatrical volume levels instead of dividing all channels down (which makes dialogue in standard players inaudible).
-  - **Dialogue Enhancement**: Boosts center channel dialogue (`FC = 0.85f` / `-1.4 dB`) so speech cuts through clearly on small phone speakers.
+  - **Downmix: Center Mix Level (-10 dB to +30 dB)**: Adjustable slider in **Settings -> Audio -> Downmix: Center mix level** (default `0 dB`, identical to Kodi) to boost or attenuate center-channel dialogue on the fly.
   - **Hardware Output Route Detection (Real-Time)**:
     - *Built-in Phone Speakers*: Cuts LFE subwoofer frequencies (`0.0f`) to protect miniature speaker cones from rattle and save headroom for vocals.
     - *Stereo Headphones/Earbuds*: Automatically injects 35% LFE (`0.35f`) for warm, punchy sub-bass without requiring manual EQ tweaking.
@@ -40,8 +40,9 @@ Ported directly from Kodi's (`xbmc/cores/AudioEngine`) audio architecture:
 
 ---
 
-### 3. Independent X / Y Zoom and Axis Snapping
+### 3. Independent X / Y Zoom, Uniform Zoom Toggle, and Axis Snapping
 - Stretch and adjust video aspect ratios horizontally (X) or vertically (Y) independently using two-finger pinch/drag gestures.
+- **Independent X/Y Zoom Toggle**: Switch anytime between custom independent horizontal/vertical stretching and standard uniform full-video zoom in **Settings -> Gestures -> Independent X/Y zoom**.
 - Built-in **intelligent axis snapping** prevents accidental cross-axis distortion while resizing.
 - Automatically persists custom zoom ratios per video in the local database.
 
@@ -55,6 +56,7 @@ Ported directly from Kodi's (`xbmc/cores/AudioEngine`) audio architecture:
 ---
 
 ### 5. Picture-in-Picture (PiP) Fixes and Playback Controls
+- **Double-Tap to Lock Controls**: Added **Lock controls** option to **Settings -> Gestures -> Double tap gesture**. Double-tapping anywhere during playback immediately locks the player UI; unlocking still requires pressing the dedicated unlock button to prevent accidental touches.
 - Fixed an upstream issue preventing manual entry into Picture-in-Picture mode when playback is paused.
 - Enhanced gesture responsiveness and auto-hiding controls.
 

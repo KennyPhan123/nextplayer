@@ -190,6 +190,14 @@ private fun GesturePreferencesContent(
                     onClick = { onEvent(GesturePreferencesUiEvent.ToggleUseZoomControls) },
                 )
                 PreferenceSwitch(
+                    title = stringResource(id = R.string.independent_xy_zoom),
+                    description = stringResource(id = R.string.independent_xy_zoom_description),
+                    icon = NextIcons.Size,
+                    enabled = uiState.preferences.useZoomControls,
+                    isChecked = uiState.preferences.independentAxisZoom,
+                    onClick = { onEvent(GesturePreferencesUiEvent.ToggleIndependentAxisZoom) },
+                )
+                PreferenceSwitch(
                     title = stringResource(id = R.string.pan_gesture),
                     description = stringResource(id = R.string.pan_gesture_description),
                     icon = NextIcons.Pan,

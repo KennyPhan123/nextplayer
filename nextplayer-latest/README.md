@@ -16,10 +16,10 @@ This edition combines upstream's modern architecture and UI improvements with cu
 
 ### 1. Kodi ActiveAE Audio Engine and Anti-Clipping Peak Limiter
 - **32-bit Float Internal Pipeline**: Decodes and mixes audio with full 32-bit float headroom (`C.ENCODING_PCM_FLOAT`). Eliminates harsh 16-bit clipping on high-dynamic-range theatrical tracks (TrueHD, DTS-HD MA, Dolby Atmos, E-AC3).
-- **Kodi `CAELimiter` DSP Port**: Genuine instant attack (0 ms), 25 ms hold, and 100 ms exponential release limiter. Allows distortion-free volume boosting up to 200% (+20 dB) without pumping or speaker damage.
+- **Kodi `CAELimiter` DSP Port**: Genuine instant attack (0 ms), 25 ms hold, and 100 ms exponential release limiter. Allows distortion-free volume boosting up to 400% (+60 dB, matching Kodi's maximum amplification) without pumping or speaker damage.
 - **Smart Stereo Downmix (5.1 / 7.1 -> 2.0)**:
   - *Unnormalized Downmix*: Maintains full theatrical dialogue and effect presence instead of scaling volume down.
-  - *Dialogue Clarity Boost*: Accentuates center channel speech (`FC = 0.85f`).
+  - *Downmix: Center Mix Level (-10 dB to +30 dB)*: Adjustable slider in **Settings -> Audio -> Downmix: Center mix level** (default `0 dB`).
   - *Route-Aware LFE*: Automatically cuts sub-bass (0.0f) on internal phone speakers to prevent cone rattle, while maintaining 35% sub-bass on headphones.
 
 ---
@@ -30,8 +30,9 @@ This edition combines upstream's modern architecture and UI improvements with cu
 
 ---
 
-### 3. Independent X / Y Zoom and Axis Snapping
+### 3. Independent X / Y Zoom, Uniform Zoom Toggle, and Axis Snapping
 - Pinch to zoom or stretch video along horizontal (X) and vertical (Y) axes independently to fit ultra-wide (21:9) or custom aspect ratio displays.
+- Toggle between independent X/Y stretching and uniform full-video zoom in **Settings -> Gestures -> Independent X/Y zoom**.
 - Built-in axis snapping prevents unintended diagonal stretching. Custom zoom states persist automatically per video.
 
 ---
@@ -42,7 +43,8 @@ This edition combines upstream's modern architecture and UI improvements with cu
 
 ---
 
-### 5. PiP Fixes and Modern Controls
+### 5. PiP Fixes, Double-Tap Lock, and Modern Controls
+- **Double-Tap to Lock Controls**: Select **Lock controls** in **Settings -> Gestures -> Double tap gesture** to lock the player with a quick double-tap; unlocking remains protected by the dedicated unlock button.
 - Allows manual Picture-in-Picture entry even when playback is paused.
 - Expressive Material 3 interface with customizable control button placement and gesture sensitivity.
 

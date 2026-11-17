@@ -181,6 +181,8 @@
     <string name="hundred_percent">100%</string>
     <string name="zoom_gesture">Zoom gesture</string>
     <string name="zoom_gesture_description">Pinch to zoom the video</string>
+    <string name="independent_xy_zoom">Independent X/Y zoom</string>
+    <string name="independent_xy_zoom_description">Stretch horizontally or vertically independently instead of uniform full-video zoom</string>
     <string name="high_contrast_dark_theme">High contrast dark theme</string>
     <string name="high_contrast_dark_theme_desc">Use pure black background for dark theme</string>
     <string name="audio_desc">Audio playback options</string>
@@ -212,7 +214,12 @@
     <string name="okay">Okay</string>
     <string name="properties">Properties</string>
     <string name="volume_boost">Volume boost</string>
-    <string name="volume_boost_desc">Boost audio volume up to 200%</string>
+    <string name="volume_boost_desc">Boost audio volume up to 400% (+60 dB)</string>
+    <string name="smart_audio_processing">Smart audio &amp; anti-clipping</string>
+    <string name="smart_audio_processing_desc">Enhance 5.1/7.1 dialogue clarity, adapt bass for speakers or headphones, and prevent audio clipping</string>
+    <string name="downmix_center_mix_level">Downmix: Center mix level</string>
+    <string name="center_mix_level_db">%1$d dB</string>
+    <string name="reset_center_mix_level">Reset center mix level</string>
     <string name="open_audio">Open local audio</string>
     <string name="error_opening_audio">Can’t open this audio file</string>
     <string name="open_subtitle">Open local subtitle</string>

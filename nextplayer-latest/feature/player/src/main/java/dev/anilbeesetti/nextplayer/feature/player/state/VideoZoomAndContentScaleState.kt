@@ -33,15 +33,21 @@ fun rememberVideoZoomAndContentScaleState(
     player: Player,
     initialContentScale: VideoContentScale,
     enableZoomGesture: Boolean,
+    independentAxisZoom: Boolean = true,
     enablePanGesture: Boolean,
     onEvent: (VideoZoomEvent) -> Unit = {},
 ): VideoZoomAndContentScaleState {
     val coroutineScope = rememberCoroutineScope()
-    val videoZoomAndContentScaleState = remember {
+    val videoZoomAndContentScaleState = remember(
+        enableZoomGesture,
+        independentAxisZoom,
+        enablePanGesture,
+    ) {
         VideoZoomAndContentScaleState(
             player = player,
             initialContentScale = initialContentScale,
             enableZoomGesture = enableZoomGesture,
+            independentAxisZoom = independentAxisZoom,
             enablePanGesture = enablePanGesture,
             onEvent = onEvent,
             coroutineScope = coroutineScope,
@@ -56,6 +62,7 @@ class VideoZoomAndContentScaleState(
     private val player: Player,
     initialContentScale: VideoContentScale,
     private val enableZoomGesture: Boolean = true,
+    val independentAxisZoom: Boolean = true,
     private val enablePanGesture: Boolean = true,
     private val onEvent: (VideoZoomEvent) -> Unit,
     private val coroutineScope: CoroutineScope,
@@ -118,14 +125,23 @@ class VideoZoomAndContentScaleState(
         if (!enableZoomGesture) return
 
         isZooming = true
-        zoomX = (zoomX * zoomChange.x).coerceIn(
-            minimumValue = MIN_ZOOM,
-            maximumValue = MAX_ZOOM,
-        )
-        zoomY = (zoomY * zoomChange.y).coerceIn(
-            minimumValue = MIN_ZOOM,
-            maximumValue = MAX_ZOOM,
-        )
+        if (independentAxisZoom) {
+            zoomX = (zoomX * zoomChange.x).coerceIn(
+                minimumValue = MIN_ZOOM,
+                maximumValue = MAX_ZOOM,
+            )
+            zoomY = (zoomY * zoomChange.y).coerceIn(
+                minimumValue = MIN_ZOOM,
+                maximumValue = MAX_ZOOM,
+            )
+        } else {
+            val uniformZoom = (zoomX * zoomChange.x).coerceIn(
+                minimumValue = MIN_ZOOM,
+                maximumValue = MAX_ZOOM,
+            )
+            zoomX = uniformZoom
+            zoomY = uniformZoom
+        }
 
         val extraWidth = (zoomX - 1) * constraints.maxWidth
         val extraHeight = (zoomY - 1) * constraints.maxHeight

@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateRotation
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.ui.geometry.Offset
@@ -117,6 +118,7 @@ fun PointerEvent.detectZoomDirection(): ZoomDirection? {
  */
 suspend fun PointerInputScope.detectCustomTransformGestures(
     panZoomLock: Boolean = false,
+    independentZoom: Boolean = true,
     pass: PointerEventPass = PointerEventPass.Main,
     pointCount: Int = 2,
     onGestureStart: (PointerInputChange) -> Unit = {},
@@ -178,7 +180,15 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
                 pointerId = pointerInputChange.id
                 pointer = pointerInputChange
 
-                val zoomChange = event.calculateZoomXY(lockedDirection = lockedZoomDirection)
+                val zoomChange = if (independentZoom) {
+                    event.calculateZoomXY(lockedDirection = lockedZoomDirection)
+                } else {
+                    val uniformZoom = event.calculateZoom()
+                    Offset(
+                        x = uniformZoom,
+                        y = uniformZoom,
+                    )
+                }
                 val rotationChange = event.calculateRotation()
                 val panChange = event.calculatePan()
 
@@ -205,7 +215,7 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
                     ) {
                         pastTouchSlop = true
                         lockedToPanZoom = panZoomLock && rotationMotion < touchSlop
-                        if (lockedZoomDirection == null) {
+                        if (independentZoom && lockedZoomDirection == null) {
                             lockedZoomDirection = event.detectZoomDirection()
                         }
                     }

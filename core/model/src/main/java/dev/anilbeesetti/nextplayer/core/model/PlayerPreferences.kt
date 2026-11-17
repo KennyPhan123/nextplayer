@@ -24,6 +24,7 @@ data class PlayerPreferences(
     val enableBrightnessSwipeGesture: Boolean = true,
     val useSeekControls: Boolean = true,
     val useZoomControls: Boolean = true,
+    val independentAxisZoom: Boolean = true,
     val enablePanGesture: Boolean = false,
     val doubleTapGesture: DoubleTapGesture = DoubleTapGesture.BOTH,
     val useLongPressControls: Boolean = false,
@@ -46,6 +47,7 @@ data class PlayerPreferences(
     val showSystemVolumePanel: Boolean = true,
     val enableVolumeBoost: Boolean = false,
     val enableSmartAudioProcessing: Boolean = true,
+    val centerMixLevelDb: Int = DEFAULT_CENTER_MIX_LEVEL_DB,
 
     // Subtitle Preferences
     val useSystemCaptionStyle: Boolean = false,
@@ -70,5 +72,8 @@ data class PlayerPreferences(
         const val DEFAULT_BRIGHTNESS_GESTURE_SENSITIVITY = 0.50f
         const val DEFAULT_SUBTITLE_TEXT_SIZE = 20
         const val DEFAULT_CONTROLLER_AUTO_HIDE_TIMEOUT = 4
+        const val DEFAULT_CENTER_MIX_LEVEL_DB = 0
+        const val MIN_CENTER_MIX_LEVEL_DB = -10
+        const val MAX_CENTER_MIX_LEVEL_DB = 30
     }
 }

@@ -106,6 +106,7 @@ internal fun MediaPlayerContent(
         player = player,
         initialContentScale = playerPreferences.playerVideoZoom,
         enableZoomGesture = playerPreferences.useZoomControls,
+        independentAxisZoom = playerPreferences.independentAxisZoom,
         enablePanGesture = playerPreferences.enablePanGesture,
         onEvent = { onAction(PlayerAction.OnVideoZoomEvent(event = it)) },
     )

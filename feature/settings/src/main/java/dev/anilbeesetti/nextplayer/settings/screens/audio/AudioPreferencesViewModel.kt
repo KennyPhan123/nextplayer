@@ -43,6 +43,7 @@ class AudioPreferencesViewModel @Inject constructor(
             AudioPreferencesUiEvent.ToggleRequireAudioFocus -> toggleRequireAudioFocus()
             AudioPreferencesUiEvent.ToggleVolumeBoost -> toggleVolumeBoost()
             AudioPreferencesUiEvent.ToggleSmartAudioProcessing -> toggleSmartAudioProcessing()
+            is AudioPreferencesUiEvent.UpdateCenterMixLevel -> updateCenterMixLevel(event.value)
         }
     }
 
@@ -99,6 +100,19 @@ class AudioPreferencesViewModel @Inject constructor(
             }
         }
     }
+
+    private fun updateCenterMixLevel(value: Int) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(
+                    centerMixLevelDb = value.coerceIn(
+                        PlayerPreferences.MIN_CENTER_MIX_LEVEL_DB,
+                        PlayerPreferences.MAX_CENTER_MIX_LEVEL_DB,
+                    ),
+                )
+            }
+        }
+    }
 }
 
 @Stable
@@ -119,4 +133,5 @@ sealed interface AudioPreferencesUiEvent {
     data object ToggleRequireAudioFocus : AudioPreferencesUiEvent
     data object ToggleVolumeBoost : AudioPreferencesUiEvent
     data object ToggleSmartAudioProcessing : AudioPreferencesUiEvent
+    data class UpdateCenterMixLevel(val value: Int) : AudioPreferencesUiEvent
 }

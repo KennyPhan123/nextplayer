@@ -66,8 +66,11 @@ class VolumeState(
 
     private var isLoudnessGainSupported: Boolean by mutableStateOf(value = false)
 
+    private val maxBoostVolume: Int
+        get() = systemMaxVolume * (MAX_VOLUME_PERCENTAGE_BOOST / MAX_VOLUME_PERCENTAGE_NORMAL - 1)
+
     val maxVolume: Int
-        get() = if (isLoudnessGainSupported) systemMaxVolume * 2 else systemMaxVolume
+        get() = if (isLoudnessGainSupported) systemMaxVolume + maxBoostVolume else systemMaxVolume
 
     val maxVolumePercentage: Int
         get() = if (isLoudnessGainSupported) {
@@ -148,7 +151,7 @@ class VolumeState(
                 volumePercentage = calculateVolumePercentage()
                 player.setLoudnessGain(gain = 0)
             } else {
-                val boostVolume = (loudnessGain * systemMaxVolume) / MAX_BOOST_GAIN_MB
+                val boostVolume = (loudnessGain * maxBoostVolume) / MAX_BOOST_GAIN_MB
                 currentVolume = systemMaxVolume + boostVolume
                 volumePercentage = calculateVolumePercentage()
             }
@@ -199,7 +202,7 @@ class VolumeState(
 
     private fun applyVolumeBoost(volume: Int) {
         val player = player as? MediaController ?: return
-        val gainMillibels = (volume.toFloat() / systemMaxVolume * MAX_BOOST_GAIN_MB).toInt()
+        val gainMillibels = (volume.toFloat() / maxBoostVolume * MAX_BOOST_GAIN_MB).toInt()
 
         try {
             player.setLoudnessGain(gain = gainMillibels)
@@ -228,7 +231,7 @@ class VolumeState(
     companion object {
         private const val VOLUME_CHANGED_ACTION = "android.media.VOLUME_CHANGED_ACTION"
         private const val MAX_VOLUME_PERCENTAGE_NORMAL = 100
-        private const val MAX_VOLUME_PERCENTAGE_BOOST = 200
-        private const val MAX_BOOST_GAIN_MB = 2000
+        private const val MAX_VOLUME_PERCENTAGE_BOOST = 400
+        private const val MAX_BOOST_GAIN_MB = 6000
     }
 }

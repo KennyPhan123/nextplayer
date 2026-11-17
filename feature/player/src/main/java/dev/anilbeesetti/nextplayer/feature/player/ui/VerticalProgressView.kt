@@ -43,7 +43,7 @@ fun VerticalProgressView(
     modifier: Modifier = Modifier,
     width: Dp = 32.dp,
     icon: Painter,
-    @IntRange(from = 0, to = 200) value: Int,
+    @IntRange(from = 0, to = 400) value: Int,
     maxValue: Int = NORMAL_MAX_PERCENTAGE,
     boostColor: Color = Color(0xFFFC6E6E),
 ) {
