@@ -1075,6 +1075,7 @@ internal fun NetworkUrlDialog(
     onDone: (String) -> Unit,
 ) {
     var url by rememberSaveable { mutableStateOf("") }
+    val context = LocalContext.current
     NextDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.network_stream)) },
@@ -1087,6 +1088,26 @@ internal fun NetworkUrlDialog(
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text(text = stringResource(R.string.example_url)) },
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(
+                onClick = {
+                    val clipboardManager =
+                        context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                    val pastedText = clipboardManager
+                        ?.primaryClip
+                        ?.takeIf { it.itemCount > 0 }
+                        ?.getItemAt(0)
+                        ?.coerceToText(context)
+                        ?.toString()
+                        ?.trim()
+                        .orEmpty()
+                    if (pastedText.isNotEmpty()) {
+                        url = pastedText
+                    }
+                },
+            ) {
+                Text(text = stringResource(R.string.paste))
+            }
         },
         confirmButton = {
             DoneButton(

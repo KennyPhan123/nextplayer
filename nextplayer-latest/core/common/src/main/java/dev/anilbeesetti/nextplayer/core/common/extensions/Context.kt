@@ -214,7 +214,10 @@ fun Context.getFilenameFromUri(uri: Uri): String = if (ContentResolver.SCHEME_FI
 ) {
     File(uri.toString()).name
 } else {
-    getFilenameFromContentUri(uri = uri) ?: uri.lastPathSegment ?: ""
+    getFilenameFromContentUri(uri = uri)
+        ?: uri.extractFilenameFromUri()
+        ?: uri.lastPathSegment
+        ?: ""
 }
 
 /**

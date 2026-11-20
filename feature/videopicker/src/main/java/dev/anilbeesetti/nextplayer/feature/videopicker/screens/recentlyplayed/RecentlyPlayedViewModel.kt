@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.feature.videopicker.screens.recentlyplayed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.anilbeesetti.nextplayer.core.common.extensions.extractFilenameFromUrl
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.database.dao.MediumStateDao
@@ -65,7 +66,8 @@ class RecentlyPlayedViewModel @Inject constructor(
                             parentPath = "",
                             duration = 0,
                             uriString = state.uriString,
-                            nameWithExtension = state.uriString.substringAfterLast('/').substringBefore('?').ifEmpty { state.uriString },
+                            nameWithExtension = extractFilenameFromUrl(uriString = state.uriString)
+                                ?: state.uriString.substringAfterLast('/').substringBefore('?').ifEmpty { state.uriString },
                             width = 0,
                             height = 0,
                             size = 0,

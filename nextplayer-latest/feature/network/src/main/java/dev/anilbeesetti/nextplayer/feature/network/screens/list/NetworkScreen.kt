@@ -1,10 +1,13 @@
 package dev.anilbeesetti.nextplayer.feature.network.screens.list
 
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -228,15 +233,38 @@ private fun NetworkStreamCard(
             placeholder = { Text(text = stringResource(R.string.example_url)) },
             singleLine = true,
         )
-        Button(
-            onClick = onOpenStream,
-            enabled = enabled,
-            modifier = Modifier
-                .align(Alignment.End)
-                .thenIf(condition = enabled) {
-                    focusRequester(focusRequester = fabUpFocusRequester)
+        val context = LocalContext.current
+        Row(
+            modifier = Modifier.align(Alignment.End),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedButton(
+                onClick = {
+                    val clipboardManager =
+                        context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    val pastedText = clipboardManager
+                        ?.primaryClip
+                        ?.takeIf { it.itemCount > 0 }
+                        ?.getItemAt(0)
+                        ?.coerceToText(context)
+                        ?.toString()
+                        ?.trim()
+                        .orEmpty()
+                    if (pastedText.isNotEmpty()) {
+                        onUrlChange(pastedText)
+                    }
                 },
-        ) { Text(text = stringResource(R.string.open_network_stream)) }
+            ) { Text(text = stringResource(R.string.paste)) }
+            Button(
+                onClick = onOpenStream,
+                enabled = enabled,
+                modifier = Modifier
+                    .thenIf(condition = enabled) {
+                        focusRequester(focusRequester = fabUpFocusRequester)
+                    },
+            ) { Text(text = stringResource(R.string.open_network_stream)) }
+        }
     }
 }
 

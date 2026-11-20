@@ -167,7 +167,10 @@ fun Context.getFilenameFromUri(uri: Uri): String {
     return if (ContentResolver.SCHEME_FILE.equals(uri.scheme, ignoreCase = true)) {
         File(uri.toString()).name
     } else {
-        getFilenameFromContentUri(uri) ?: uri.lastPathSegment ?: ""
+        getFilenameFromContentUri(uri)
+            ?: uri.extractFilenameFromUri()
+            ?: uri.lastPathSegment
+            ?: ""
     }
 }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.net.toUri
 import dev.anilbeesetti.nextplayer.core.common.Utils
+import dev.anilbeesetti.nextplayer.core.common.extensions.extractFilenameFromUri
 import dev.anilbeesetti.nextplayer.core.common.extensions.mapAsync
 import dev.anilbeesetti.nextplayer.core.data.mappers.toAudioStreamInfo
 import dev.anilbeesetti.nextplayer.core.data.mappers.toFolder
@@ -215,7 +216,8 @@ class LocalMediaRepository(
 
 private fun MediumStateEntity.toHistoryVideo(): Video {
     val uri = uriString.toUri()
-    val name = uri.lastPathSegment?.substringAfterLast(delimiter = '/')
+    val name = uri.extractFilenameFromUri()
+        ?: uri.lastPathSegment?.substringAfterLast(delimiter = '/')
         ?: uri.host
         ?: uriString
     return Video(
