@@ -213,7 +213,9 @@ class LocalMediaRepositoryTest {
 
     @Test
     fun `history uses persisted resolved title over opaque stream url`() = runTest {
-        val file = temporaryFolder.newFile()
+        val file = temporaryFolder.newFile().apply {
+            writeText(text = "{}")
+        }
         val preferences = AppPreferencesDataSource(
             DataStoreFactory.create(
                 serializer = ApplicationPreferencesSerializer,
