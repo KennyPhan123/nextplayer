@@ -7,6 +7,8 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.TransferListener
+import dev.anilbeesetti.nextplayer.core.common.extensions.extractFilenameFromHttpHeaders
+import dev.anilbeesetti.nextplayer.core.common.extensions.isProbeableHttpUrl
 import dev.anilbeesetti.nextplayer.core.media.network.NetworkUri
 import org.koin.core.annotation.Single
 
@@ -18,9 +20,18 @@ import org.koin.core.annotation.Single
 @Single
 class NextDataSourceFactory(private val context: Context, private val sessions: NetworkSessions) : DataSource.Factory {
 
+    @Volatile
+    var onHttpFilenameResolved: ((String, String) -> Unit)? = null
+
     override fun createDataSource(): DataSource = SchemeDispatchingDataSource(
         default = DefaultDataSource.Factory(context).createDataSource(),
         network = NetworkDataSource(sessions = sessions),
+        onHttpFilenameResolved = { uriString, filename ->
+            onHttpFilenameResolved?.invoke(
+                uriString,
+                filename,
+            )
+        },
     )
 
     /** Disconnects the network client held for playback. Call when the player is released. */
@@ -35,6 +46,7 @@ class NextDataSourceFactory(private val context: Context, private val sessions: 
 private class SchemeDispatchingDataSource(
     private val default: DataSource,
     private val network: DataSource,
+    private val onHttpFilenameResolved: (String, String) -> Unit,
 ) : DataSource {
 
     private var delegate: DataSource? = null
@@ -42,7 +54,22 @@ private class SchemeDispatchingDataSource(
     override fun open(dataSpec: DataSpec): Long {
         val target = if (NetworkUri.isNetworkUri(dataSpec.uri)) network else default
         delegate = target
-        return target.open(dataSpec)
+        val length = target.open(dataSpec)
+        val requestUriString = dataSpec.uri.toString()
+        if (isProbeableHttpUrl(uriString = requestUriString)) {
+            val resolvedFilename = extractFilenameFromHttpHeaders(
+                responseHeaders = target.responseHeaders,
+                finalUrl = target.uri?.toString(),
+                originalUrl = requestUriString,
+            )
+            if (!resolvedFilename.isNullOrBlank()) {
+                onHttpFilenameResolved(
+                    requestUriString,
+                    resolvedFilename,
+                )
+            }
+        }
+        return length
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int = checkNotNull(value = delegate) { "read() before open()" }.read(

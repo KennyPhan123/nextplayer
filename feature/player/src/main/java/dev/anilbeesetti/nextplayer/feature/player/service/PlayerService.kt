@@ -38,6 +38,9 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.deleteFiles
 import dev.anilbeesetti.nextplayer.core.common.extensions.getFilenameFromUri
 import dev.anilbeesetti.nextplayer.core.common.extensions.getLocalSubtitles
 import dev.anilbeesetti.nextplayer.core.common.extensions.getPath
+import dev.anilbeesetti.nextplayer.core.common.extensions.hasKnownMediaExtension
+import dev.anilbeesetti.nextplayer.core.common.extensions.isProbeableHttpUrl
+import dev.anilbeesetti.nextplayer.core.common.extensions.resolveHttpStreamFilename
 import dev.anilbeesetti.nextplayer.core.common.extensions.subtitleCacheDir
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
@@ -69,6 +72,7 @@ import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMilliseconds
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +93,9 @@ class PlayerService : MediaSessionService() {
     private val serviceScope: CoroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var mediaSession: MediaSession? = null
     private var artworkLoadJob: Job? = null
+    private var resolveTitleJob: Job? = null
+    private val resolvedRemoteTitles = ConcurrentHashMap<String, String>()
+    private val explicitTitleMediaIds = ConcurrentHashMap.newKeySet<String>()
 
     @Inject
     lateinit var preferencesRepository: PreferencesRepository
@@ -116,6 +123,7 @@ class PlayerService : MediaSessionService() {
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) return
             isMediaItemReady = false
             loadArtworkForCurrentMediaItem()
+            resolveRemoteTitleForCurrentMediaItem()
             mediaItem?.mediaMetadata?.let { metadata ->
                 mediaSession?.player?.run {
                     setPlaybackSpeed(metadata.playbackSpeed ?: playerPreferences.defaultPlaybackSpeed)
@@ -672,6 +680,7 @@ class PlayerService : MediaSessionService() {
     override fun onDestroy() {
         super.onDestroy()
         artworkLoadJob?.cancel()
+        resolveTitleJob?.cancel()
         audioOutputRouteDetector?.stop()
         audioOutputRouteDetector = null
         mediaSession?.run {
@@ -714,7 +723,16 @@ class PlayerService : MediaSessionService() {
                 // Use placeholder artwork initially - actual artwork will be loaded in background
                 val artworkUri = getDefaultArtworkUri()
 
-                val title = mediaItem.mediaMetadata.title ?: video?.nameWithExtension ?: getFilenameFromUri(uri)
+                val explicitTitle = mediaItem.mediaMetadata.title?.toString()?.takeIf { it.isNotBlank() }
+                if (explicitTitle != null) {
+                    explicitTitleMediaIds.add(mediaItem.mediaId)
+                } else {
+                    explicitTitleMediaIds.remove(mediaItem.mediaId)
+                }
+                val title = explicitTitle
+                    ?: video?.nameWithExtension
+                    ?: videoState?.title?.takeIf { it.isNotBlank() }
+                    ?: getFilenameFromUri(uri)
                 val positionMs = mediaItem.mediaMetadata.positionMs ?: videoState?.position
                 val videoScaleX = mediaItem.mediaMetadata.videoZoomX ?: videoState?.videoScale
                 val videoScaleY = mediaItem.mediaMetadata.videoZoomY ?: videoState?.videoScaleY
@@ -790,10 +808,68 @@ class PlayerService : MediaSessionService() {
             null
         }
     }
+    private fun resolveRemoteTitleForCurrentMediaItem() {
+        resolveTitleJob?.cancel()
+        val player = mediaSession?.player ?: return
+        val currentMediaItem = player.currentMediaItem ?: return
+        val uriString = currentMediaItem.mediaId
+        if (!isProbeableHttpUrl(uriString = uriString)) return
+        if (uriString in explicitTitleMediaIds) return
+        if (resolvedRemoteTitles.containsKey(uriString)) return
+
+        val currentTitle = currentMediaItem.mediaMetadata.title?.toString().orEmpty()
+        if (currentTitle.hasKnownMediaExtension()) return
+
+        resolveTitleJob = serviceScope.launch(Dispatchers.IO) {
+            val resolvedTitle = resolveHttpStreamFilename(url = uriString) ?: return@launch
+            applyResolvedRemoteTitle(
+                uriString = uriString,
+                resolvedTitle = resolvedTitle,
+            )
+        }
+    }
+
+    private fun applyResolvedRemoteTitle(uriString: String, resolvedTitle: String) {
+        val cleanedTitle = resolvedTitle.trim()
+        if (cleanedTitle.isEmpty()) return
+        if (uriString in explicitTitleMediaIds) return
+        if (resolvedRemoteTitles.put(uriString, cleanedTitle) == cleanedTitle) return
+
+        serviceScope.launch(Dispatchers.Main) {
+            val player = mediaSession?.player ?: return@launch
+            var matchedMediaItem = false
+            for (index in 0 until player.mediaItemCount) {
+                val item = player.getMediaItemAt(index)
+                if (item.mediaId == uriString) {
+                    matchedMediaItem = true
+                    if (item.mediaMetadata.title?.toString() != cleanedTitle) {
+                        player.replaceMediaItem(
+                            index,
+                            item.withTitle(cleanedTitle),
+                        )
+                    }
+                }
+            }
+            if (!matchedMediaItem) return@launch
+            mediaRepository.updateMediumTitle(
+                uri = uriString,
+                title = cleanedTitle,
+            )
+        }
+    }
+
     private fun MediaItem.withArtwork(uri: Uri): MediaItem = buildUpon()
         .setMediaMetadata(
             mediaMetadata.buildUpon()
                 .setArtworkUri(uri)
+                .build(),
+        )
+        .build()
+
+    private fun MediaItem.withTitle(title: String): MediaItem = buildUpon()
+        .setMediaMetadata(
+            mediaMetadata.buildUpon()
+                .setTitle(title)
                 .build(),
         )
         .build()

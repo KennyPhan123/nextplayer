@@ -54,6 +54,9 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.deleteFiles
 import dev.anilbeesetti.nextplayer.core.common.extensions.getFilenameFromUri
 import dev.anilbeesetti.nextplayer.core.common.extensions.getLocalSubtitles
 import dev.anilbeesetti.nextplayer.core.common.extensions.getPath
+import dev.anilbeesetti.nextplayer.core.common.extensions.hasKnownMediaExtension
+import dev.anilbeesetti.nextplayer.core.common.extensions.isProbeableHttpUrl
+import dev.anilbeesetti.nextplayer.core.common.extensions.resolveHttpStreamFilename
 import dev.anilbeesetti.nextplayer.core.common.extensions.subtitleCacheDir
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
@@ -95,6 +98,7 @@ import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMillisecon
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 import io.github.anilbeesetti.nextlib.mediainfo.MediaInfoBuilder
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -119,6 +123,9 @@ class PlayerService : MediaSessionService() {
     )
     private var mediaSession: MediaSession? = null
     private var artworkLoadJob: Job? = null
+    private var resolveTitleJob: Job? = null
+    private val resolvedRemoteTitles = ConcurrentHashMap<String, String>()
+    private val explicitTitleMediaIds = ConcurrentHashMap.newKeySet<String>()
 
     private val preferencesRepository: PreferencesRepository by inject()
 
@@ -233,6 +240,7 @@ class PlayerService : MediaSessionService() {
             restoreDecoderChoices(mediaItem = mediaItem)
             isMediaItemReady = false
             loadArtworkForCurrentMediaItem()
+            resolveRemoteTitleForCurrentMediaItem()
             mediaItem?.mediaMetadata?.let { metadata ->
                 mediaSession?.player?.run {
                     playerSpecificSubtitleDelayMilliseconds =
@@ -825,6 +833,12 @@ class PlayerService : MediaSessionService() {
         }
 
         decoderManager = DecoderManager()
+        dataSourceFactory.onHttpFilenameResolved = { uriString, resolvedTitle ->
+            applyResolvedRemoteTitle(
+                uriString = uriString,
+                resolvedTitle = resolvedTitle,
+            )
+        }
         val renderersFactory = object : NextRenderersFactory(
             context = applicationContext,
         ) {
@@ -1009,6 +1023,8 @@ class PlayerService : MediaSessionService() {
     override fun onDestroy() {
         super.onDestroy()
         artworkLoadJob?.cancel()
+        resolveTitleJob?.cancel()
+        dataSourceFactory.onHttpFilenameResolved = null
         audioOutputRouteDetector?.stop()
         audioOutputRouteDetector = null
         mediaSession?.run {
@@ -1087,8 +1103,16 @@ class PlayerService : MediaSessionService() {
                     getDefaultArtworkUri()
                 }
 
+                val explicitTitle =
+                    mediaItem.mediaMetadata.title?.toString()?.takeIf(predicate = String::isNotBlank)
+                if (explicitTitle != null) {
+                    explicitTitleMediaIds.add(mediaItem.mediaId)
+                } else {
+                    explicitTitleMediaIds.remove(mediaItem.mediaId)
+                }
                 val title =
-                    mediaItem.mediaMetadata.title ?: video?.nameWithExtension
+                    explicitTitle ?: video?.nameWithExtension
+                        ?: videoState?.title?.takeIf(predicate = String::isNotBlank)
                         ?: getFilenameFromUri(uri = uri)
                 val positionMs = mediaItem.mediaMetadata.positionMs ?: videoState?.position
                 val videoScaleX = mediaItem.mediaMetadata.videoZoomX ?: videoState?.videoScale
@@ -1333,6 +1357,62 @@ class PlayerService : MediaSessionService() {
         }
     }
 
+    private fun resolveRemoteTitleForCurrentMediaItem() {
+        resolveTitleJob?.cancel()
+        val player = mediaSession?.player ?: return
+        val currentMediaItem = player.currentMediaItem ?: return
+        val uriString = currentMediaItem.mediaId
+        if (!isProbeableHttpUrl(uriString = uriString)) return
+        if (uriString in explicitTitleMediaIds) return
+        if (resolvedRemoteTitles.containsKey(uriString)) return
+
+        val currentTitle = currentMediaItem.mediaMetadata.title?.toString().orEmpty()
+        if (currentTitle.hasKnownMediaExtension()) return
+
+        resolveTitleJob = serviceScope.launch(Dispatchers.IO) {
+            val resolvedTitle = resolveHttpStreamFilename(url = uriString) ?: return@launch
+            applyResolvedRemoteTitle(
+                uriString = uriString,
+                resolvedTitle = resolvedTitle,
+            )
+        }
+    }
+
+    private fun applyResolvedRemoteTitle(uriString: String, resolvedTitle: String) {
+        val cleanedTitle = resolvedTitle.trim()
+        if (cleanedTitle.isEmpty()) return
+        if (uriString in explicitTitleMediaIds) return
+        if (resolvedRemoteTitles.put(
+                uriString,
+                cleanedTitle,
+            ) == cleanedTitle
+        ) {
+            return
+        }
+
+        serviceScope.launch(Dispatchers.Main) {
+            val player = mediaSession?.player ?: return@launch
+            var matchedMediaItem = false
+            for (index in 0 until player.mediaItemCount) {
+                val item = player.getMediaItemAt(index)
+                if (item.mediaId == uriString) {
+                    matchedMediaItem = true
+                    if (item.mediaMetadata.title?.toString() != cleanedTitle) {
+                        player.replaceMediaItem(
+                            index,
+                            item.withTitle(title = cleanedTitle),
+                        )
+                    }
+                }
+            }
+            if (!matchedMediaItem) return@launch
+            mediaRepository.updateMediumTitle(
+                uri = uriString,
+                title = cleanedTitle,
+            )
+        }
+    }
+
     private fun MediaItem.isNetworkMediaItem(): Boolean {
         val uri = localConfiguration?.uri ?: return false
         return uri.scheme?.lowercase() in REMOTE_SCHEMES || NetworkUri.isNetworkUri(uri = uri)
@@ -1342,6 +1422,14 @@ class PlayerService : MediaSessionService() {
         .setMediaMetadata(
             mediaMetadata.buildUpon()
                 .setArtworkUri(uri)
+                .build(),
+        )
+        .build()
+
+    private fun MediaItem.withTitle(title: String): MediaItem = buildUpon()
+        .setMediaMetadata(
+            mediaMetadata.buildUpon()
+                .setTitle(title)
                 .build(),
         )
         .build()

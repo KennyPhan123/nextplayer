@@ -274,6 +274,32 @@ class MediaDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate14To15_addsNullableTitleColumn() {
+        helper.createDatabase(
+            name = "title-migration",
+            version = 14,
+        ).apply {
+            execSQL(
+                "INSERT INTO media_state " +
+                    "(uri, playback_position, external_subs, video_scale, video_scale_y, subtitle_delay, subtitle_speed) " +
+                    "VALUES ('https://pixeldrain.com/api/file/eXr4nikk?download', 100, '', 1, 1, 0, 1)",
+            )
+            close()
+        }
+        helper.runMigrationsAndValidate(
+            name = "title-migration",
+            version = 15,
+            validateDroppedTables = true,
+            MediaDatabase.MIGRATION_14_15,
+        ).use { db ->
+            db.query("SELECT title FROM media_state").use { cursor ->
+                check(cursor.moveToFirst())
+                assertTrue(cursor.isNull(0))
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

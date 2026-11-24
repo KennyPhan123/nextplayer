@@ -191,4 +191,15 @@ class LocalMediaRepository @Inject constructor(
             ),
         )
     }
+
+    override suspend fun updateMediumTitle(uri: String, title: String) {
+        val cleaned = title.trim()
+        if (cleaned.isEmpty()) return
+        val stateEntity = mediumStateDao.get(uri) ?: MediumStateEntity(uriString = uri)
+        mediumStateDao.upsert(
+            mediumState = stateEntity.copy(
+                title = cleaned,
+            ),
+        )
+    }
 }

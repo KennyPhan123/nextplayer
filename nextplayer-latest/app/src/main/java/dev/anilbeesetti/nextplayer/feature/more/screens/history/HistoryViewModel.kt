@@ -1,12 +1,16 @@
 package dev.anilbeesetti.nextplayer.feature.more.screens.history
 
 import androidx.lifecycle.viewModelScope
+import dev.anilbeesetti.nextplayer.core.common.extensions.hasKnownMediaExtension
+import dev.anilbeesetti.nextplayer.core.common.extensions.isProbeableHttpUrl
+import dev.anilbeesetti.nextplayer.core.common.extensions.resolveHttpStreamFilename
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
 import dev.anilbeesetti.nextplayer.core.ui.base.MviViewModel
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +40,7 @@ class HistoryViewModel(
                 }
                 .collect { history ->
                     stateInternal.update { it.copy(history = DataState.Success(value = history)) }
+                    resolveMissingHistoryTitles(videos = history)
                 }
         }
         viewModelScope.launch {
@@ -64,6 +69,26 @@ class HistoryViewModel(
 
     private fun clearHistory() {
         viewModelScope.launch { mediaRepository.clearPlaybackHistory() }
+    }
+
+    private fun resolveMissingHistoryTitles(videos: List<Video>) {
+        for (video in videos) {
+            val uri = video.uriString
+            if (!isProbeableHttpUrl(uriString = uri)) continue
+            if (video.nameWithExtension.hasKnownMediaExtension()) continue
+            if (!attemptedHistoryTitleUris.add(uri)) continue
+            viewModelScope.launch {
+                val resolvedTitle = resolveHttpStreamFilename(url = uri) ?: return@launch
+                mediaRepository.updateMediumTitle(
+                    uri = uri,
+                    title = resolvedTitle,
+                )
+            }
+        }
+    }
+
+    private companion object {
+        val attemptedHistoryTitleUris: MutableSet<String> = ConcurrentHashMap.newKeySet()
     }
 }
 

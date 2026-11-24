@@ -68,4 +68,7 @@ class FakeMediaRepository : MediaRepository {
 
     override suspend fun updateSubtitleSpeed(uri: String, speed: Float) {
     }
+
+    override suspend fun updateMediumTitle(uri: String, title: String) {
+    }
 }

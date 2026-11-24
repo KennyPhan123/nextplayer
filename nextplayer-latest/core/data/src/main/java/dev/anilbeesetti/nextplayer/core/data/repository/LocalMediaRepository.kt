@@ -202,6 +202,12 @@ class LocalMediaRepository(
         mediumStateDao.update(uri = uri) { it.copy(subtitleSpeed = speed) }
     }
 
+    override suspend fun updateMediumTitle(uri: String, title: String) {
+        val cleaned = title.trim()
+        if (cleaned.isEmpty()) return
+        mediumStateDao.update(uri = uri) { it.copy(title = cleaned) }
+    }
+
     private fun Uri.isVaultUri(): Boolean {
         if (scheme != "content" || authority != "${context.packageName}.fileprovider") return false
         val segments = pathSegments
@@ -216,7 +222,8 @@ class LocalMediaRepository(
 
 private fun MediumStateEntity.toHistoryVideo(): Video {
     val uri = uriString.toUri()
-    val name = uri.extractFilenameFromUri()
+    val name = title?.takeIf(predicate = String::isNotBlank)
+        ?: uri.extractFilenameFromUri()
         ?: uri.lastPathSegment?.substringAfterLast(delimiter = '/')
         ?: uri.host
         ?: uriString

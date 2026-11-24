@@ -66,7 +66,8 @@ class RecentlyPlayedViewModel @Inject constructor(
                             parentPath = "",
                             duration = 0,
                             uriString = state.uriString,
-                            nameWithExtension = extractFilenameFromUrl(uriString = state.uriString)
+                            nameWithExtension = state.title?.takeIf { it.isNotBlank() }
+                                ?: extractFilenameFromUrl(uriString = state.uriString)
                                 ?: state.uriString.substringAfterLast('/').substringBefore('?').ifEmpty { state.uriString },
                             width = 0,
                             height = 0,

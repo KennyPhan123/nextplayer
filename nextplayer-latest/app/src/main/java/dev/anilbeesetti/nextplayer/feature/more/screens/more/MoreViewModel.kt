@@ -1,12 +1,16 @@
 package dev.anilbeesetti.nextplayer.feature.more.screens.more
 
 import androidx.lifecycle.viewModelScope
+import dev.anilbeesetti.nextplayer.core.common.extensions.hasKnownMediaExtension
+import dev.anilbeesetti.nextplayer.core.common.extensions.isProbeableHttpUrl
+import dev.anilbeesetti.nextplayer.core.common.extensions.resolveHttpStreamFilename
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
 import dev.anilbeesetti.nextplayer.core.ui.base.MviViewModel
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +22,7 @@ import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
 class MoreViewModel(
-    mediaRepository: MediaRepository,
+    private val mediaRepository: MediaRepository,
     preferencesRepository: PreferencesRepository,
     @InjectedParam internal var output: Output,
 ) : MviViewModel<MoreUiState, MoreAction>() {
@@ -34,6 +38,7 @@ class MoreViewModel(
                 }
                 .collect { history ->
                     stateInternal.update { it.copy(history = DataState.Success(value = history)) }
+                    resolveMissingHistoryTitles(videos = history)
                 }
         }
         viewModelScope.launch {
@@ -53,6 +58,22 @@ class MoreViewModel(
         }
     }
 
+    private fun resolveMissingHistoryTitles(videos: List<Video>) {
+        for (video in videos) {
+            val uri = video.uriString
+            if (!isProbeableHttpUrl(uriString = uri)) continue
+            if (video.nameWithExtension.hasKnownMediaExtension()) continue
+            if (!attemptedHistoryTitleUris.add(uri)) continue
+            viewModelScope.launch {
+                val resolvedTitle = resolveHttpStreamFilename(url = uri) ?: return@launch
+                mediaRepository.updateMediumTitle(
+                    uri = uri,
+                    title = resolvedTitle,
+                )
+            }
+        }
+    }
+
     data class Output(
         val openHistory: () -> Unit,
         val playVideo: (String) -> Unit,
@@ -60,6 +81,10 @@ class MoreViewModel(
         val openTrash: () -> Unit,
         val openVault: () -> Unit,
     )
+
+    private companion object {
+        val attemptedHistoryTitleUris: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    }
 }
 
 data class MoreUiState(

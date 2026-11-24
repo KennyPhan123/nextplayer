@@ -13,4 +13,5 @@ data class VideoState(
     val videoScaleY: Float,
     val subtitleDelayMilliseconds: Long,
     val subtitleSpeed: Float,
+    val title: String? = null,
 )

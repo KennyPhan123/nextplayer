@@ -210,4 +210,53 @@ class LocalMediaRepositoryTest {
             dao.get(uri = uri)?.lastPlayedTime,
         )
     }
+
+    @Test
+    fun `history uses persisted resolved title over opaque stream url`() = runTest {
+        val file = temporaryFolder.newFile()
+        val preferences = AppPreferencesDataSource(
+            DataStoreFactory.create(
+                serializer = ApplicationPreferencesSerializer,
+                scope = backgroundScope,
+                produceFile = { file },
+            ),
+        )
+        val mediaService = object : MediaService {
+            override fun observeFolders(folderPath: String?) = flowOf(value = emptyList<MediaFolder>())
+            override fun observeVideos(folderPath: String?) = flowOf(value = emptyList<MediaVideo>())
+            override fun observeTrashVideos() = observeVideos(folderPath = null)
+            override suspend fun fetchFolders(folderPath: String?) = emptyList<MediaFolder>()
+            override suspend fun fetchVideos(folderPath: String?) = emptyList<MediaVideo>()
+            override suspend fun findVideo(uri: Uri) = null
+            override suspend fun findFolder(path: String) = null
+        }
+        val repository = LocalMediaRepository(
+            mediumStateDao = dao,
+            mediaService = mediaService,
+            appPreferencesDataSource = preferences,
+            RuntimeEnvironment.getApplication(),
+        )
+        val pixeldrainUrl = "https://pixeldrain.com/api/file/eXr4nikk?download"
+        val resolvedTitle =
+            "DDLBase.com_Gemini.Man.2019.UHD.BluRay.2160p.TrueHD.Atmos.7.1.DV.HEVC.REMUX-FraMeSToR.mkv"
+
+        repository.updateMediumLastPlayedTime(
+            uri = pixeldrainUrl,
+            lastPlayedTime = 1_000L,
+            duration = 7_000L,
+        )
+        assertEquals(
+            "eXr4nikk",
+            repository.observePlaybackHistory().first().single().nameWithExtension,
+        )
+
+        repository.updateMediumTitle(
+            uri = pixeldrainUrl,
+            title = resolvedTitle,
+        )
+        assertEquals(
+            resolvedTitle,
+            repository.observePlaybackHistory().first().single().nameWithExtension,
+        )
+    }
 }

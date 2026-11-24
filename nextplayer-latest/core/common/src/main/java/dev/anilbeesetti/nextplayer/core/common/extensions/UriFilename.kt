@@ -1,8 +1,12 @@
 package dev.anilbeesetti.nextplayer.core.common.extensions
 
 import android.net.Uri
+import java.net.HttpURLConnection
+import java.net.URL
 import java.net.URLDecoder
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val PRIORITY_FILENAME_QUERY_KEYS = listOf(
     "filename",
@@ -54,12 +58,52 @@ private val KNOWN_MEDIA_EXTENSIONS = setOf(
     "m4a",
 )
 
+private val MANIFEST_EXTENSIONS = setOf(
+    "m3u",
+    "m3u8",
+    "mpd",
+)
+
+private val GENERIC_STREAM_SEGMENTS = setOf(
+    "download",
+    "stream",
+    "video",
+    "play",
+    "watch",
+    "media",
+    "file",
+    "index",
+    "embed",
+    "live",
+    "player",
+)
+
+private val LOCAL_HOSTS = setOf(
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+    "::1",
+    "[::1]",
+)
+
+private val REDIRECT_STATUS_CODES = setOf(
+    HttpURLConnection.HTTP_MOVED_PERM,
+    HttpURLConnection.HTTP_MOVED_TEMP,
+    HttpURLConnection.HTTP_SEE_OTHER,
+    307,
+    308,
+)
+
+private const val MAX_REDIRECTS = 5
+private const val DEFAULT_HTTP_PROBE_TIMEOUT_MS = 4_000
+private const val HTTP_USER_AGENT = "NextPlayer/1.0"
+
 private val RFC5987_FILENAME_REGEX = Regex(
-    pattern = """(?i)filename\*\s*=\s*(?:UTF-8''|utf-8'')?([^\s;]+)""",
+    pattern = """(?i)filename\*\s*=\s*(?:[^';\r\n]*''\s*)?(?:"([^"\r\n]+)"|'([^'\r\n]+)'|([^;\r\n]+))""",
 )
 
 private val CONTENT_DISPOSITION_FILENAME_REGEX = Regex(
-    pattern = """(?i)filename\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s;]+))""",
+    pattern = """(?i)filename\s*=\s*(?:"([^"\r\n]+)"|'([^'\r\n]+)'|([^;\r\n]+))""",
 )
 
 /**
@@ -114,7 +158,7 @@ fun extractFilenameFromUrl(
                 value.isNotBlank()
         }?.second
         val candidate = match?.let(block = ::sanitizeCandidateFilename)
-        if (candidate != null && hasKnownMediaExtension(name = candidate)) {
+        if (candidate != null && candidate.hasKnownMediaExtension()) {
             return candidate
         }
     }
@@ -137,7 +181,7 @@ fun extractFilenameFromUrl(
     // 4. Check any other query parameter whose value ends with a known media extension.
     for ((_, value) in queryParams) {
         val candidate = sanitizeCandidateFilename(raw = value)
-        if (candidate != null && hasKnownMediaExtension(name = candidate)) {
+        if (candidate != null && candidate.hasKnownMediaExtension()) {
             return candidate
         }
     }
@@ -159,7 +203,7 @@ fun extractFilenameFromUrl(
             }
         }
         val fragmentCandidate = sanitizeCandidateFilename(raw = decodeUrlComponent(rawFragment))
-        if (fragmentCandidate != null && hasKnownMediaExtension(name = fragmentCandidate)) {
+        if (fragmentCandidate != null && fragmentCandidate.hasKnownMediaExtension()) {
             return fragmentCandidate
         }
     }
@@ -171,7 +215,7 @@ fun extractFilenameFromUrl(
         .mapNotNull { segment ->
             sanitizeCandidateFilename(raw = decodeUrlComponent(segment))
         }
-    pathSegments.lastOrNull(predicate = ::hasKnownMediaExtension)?.let { return it }
+    pathSegments.lastOrNull(predicate = String::hasKnownMediaExtension)?.let { return it }
 
     // 7. Fallback to last path segment or host.
     val fallbackFromSegment = fallbackSegment
@@ -184,6 +228,191 @@ fun extractFilenameFromUrl(
 
     return fallbackHost?.takeIf(predicate = String::isNotBlank)
 }
+
+/**
+ * Extracts a filename from HTTP response headers (`Content-Disposition`, `Content-Location`)
+ * or a redirected [finalUrl].
+ */
+fun extractFilenameFromHttpHeaders(
+    responseHeaders: Map<out String?, List<String>>,
+    finalUrl: String? = null,
+    originalUrl: String? = null,
+): String? {
+    for ((rawKey, values) in responseHeaders) {
+        val key = rawKey ?: continue
+        if (key.equals(
+                other = "Content-Disposition",
+                ignoreCase = true,
+            )
+        ) {
+            for (headerValue in values) {
+                extractFromContentDisposition(disposition = headerValue)?.let { return it }
+            }
+        }
+    }
+
+    for ((rawKey, values) in responseHeaders) {
+        val key = rawKey ?: continue
+        if (key.equals(
+                other = "Content-Location",
+                ignoreCase = true,
+            )
+        ) {
+            for (headerValue in values) {
+                val candidate = extractFilenameFromUrl(uriString = headerValue)
+                if (candidate != null && !isGenericStreamName(name = candidate)) {
+                    return candidate
+                }
+            }
+        }
+    }
+
+    if (!finalUrl.isNullOrBlank() && finalUrl != originalUrl) {
+        val candidate = extractFilenameFromUrl(uriString = finalUrl)
+        val originalFallback = originalUrl?.let { extractFilenameFromUrl(uriString = it) }
+        if (candidate != null &&
+            !isGenericStreamName(name = candidate) &&
+            (candidate.hasKnownMediaExtension() || candidate != originalFallback)
+        ) {
+            return candidate
+        }
+    }
+
+    return null
+}
+
+/**
+ * Probes an HTTP/HTTPS stream URL asynchronously to resolve the true media filename from
+ * `Content-Disposition`, `Content-Location`, or redirect targets.
+ *
+ * Uses `HEAD` first and falls back to `GET` with `Range: bytes=0-0` if the server rejects `HEAD`
+ * or omits disposition headers on `HEAD` responses.
+ */
+suspend fun resolveHttpStreamFilename(
+    url: String,
+    timeoutMs: Int = DEFAULT_HTTP_PROBE_TIMEOUT_MS,
+): String? = withContext(Dispatchers.IO) {
+    if (!isProbeableHttpUrl(uriString = url)) return@withContext null
+
+    probeHttpHeaders(
+        url = url,
+        method = "HEAD",
+        rangeHeader = null,
+        timeoutMs = timeoutMs,
+    )?.let { return@withContext it }
+
+    probeHttpHeaders(
+        url = url,
+        method = "GET",
+        rangeHeader = "bytes=0-0",
+        timeoutMs = timeoutMs,
+    )
+}
+
+/** Returns true if [uriString] is a non-local, non-manifest HTTP/HTTPS URL suitable for header probing. */
+fun isProbeableHttpUrl(uriString: String): Boolean {
+    val trimmed = uriString.trim()
+    val scheme = trimmed.substringBefore(
+        delimiter = "://",
+        missingDelimiterValue = "",
+    ).lowercase(Locale.ROOT)
+    if (scheme != "http" && scheme != "https") return false
+
+    val authority = trimmed
+        .substringAfter(delimiter = "://")
+        .substringBefore(delimiter = '/')
+        .substringBefore(delimiter = '?')
+        .substringBefore(delimiter = '#')
+    val host = authority
+        .substringAfterLast(delimiter = '@')
+        .substringBefore(delimiter = ':')
+        .lowercase(Locale.ROOT)
+    if (host.isBlank() || host in LOCAL_HOSTS) return false
+
+    val pathWithoutQuery = trimmed
+        .substringBefore(delimiter = '#')
+        .substringBefore(delimiter = '?')
+    val pathExt = pathWithoutQuery
+        .substringAfterLast(
+            delimiter = '.',
+            missingDelimiterValue = "",
+        )
+        .lowercase(Locale.ROOT)
+    return pathExt !in MANIFEST_EXTENSIONS
+}
+
+fun String.hasKnownMediaExtension(): Boolean {
+    val ext = substringAfterLast(
+        delimiter = '.',
+        missingDelimiterValue = "",
+    ).lowercase(Locale.ROOT)
+    return ext in KNOWN_MEDIA_EXTENSIONS
+}
+
+private fun probeHttpHeaders(
+    url: String,
+    method: String,
+    rangeHeader: String?,
+    timeoutMs: Int,
+): String? {
+    var currentUrl = runCatching { URL(url) }.getOrNull() ?: return null
+    for (redirect in 0..MAX_REDIRECTS) {
+        var connection: HttpURLConnection? = null
+        try {
+            val opened = currentUrl.openConnection() as? HttpURLConnection ?: return null
+            connection = opened
+            opened.requestMethod = method
+            opened.connectTimeout = timeoutMs
+            opened.readTimeout = timeoutMs
+            opened.instanceFollowRedirects = false
+            opened.setRequestProperty(
+                "User-Agent",
+                HTTP_USER_AGENT,
+            )
+            if (rangeHeader != null) {
+                opened.setRequestProperty(
+                    "Range",
+                    rangeHeader,
+                )
+            }
+            opened.connect()
+
+            val responseCode = opened.responseCode
+            val headers: Map<out String?, List<String>> = opened.headerFields ?: emptyMap()
+
+            if (responseCode in REDIRECT_STATUS_CODES) {
+                val location = opened.getHeaderField("Location")?.trim()
+                if (location.isNullOrBlank()) return null
+                val nextUrl = runCatching {
+                    URL(
+                        currentUrl,
+                        location,
+                    )
+                }.getOrNull() ?: return null
+                val nextProtocol = nextUrl.protocol.lowercase(Locale.ROOT)
+                if (nextProtocol != "http" && nextProtocol != "https") return null
+                currentUrl = nextUrl
+                continue
+            }
+
+            if (responseCode in 200..299) {
+                return extractFilenameFromHttpHeaders(
+                    responseHeaders = headers,
+                    finalUrl = currentUrl.toString(),
+                    originalUrl = url,
+                )
+            }
+            return null
+        } catch (_: Exception) {
+            return null
+        } finally {
+            connection?.disconnect()
+        }
+    }
+    return null
+}
+
+private fun isGenericStreamName(name: String): Boolean = name.lowercase(Locale.ROOT) in GENERIC_STREAM_SEGMENTS
 
 private fun parseQueryParameters(rawQuery: String): List<Pair<String, String>> {
     if (rawQuery.isBlank()) return emptyList()
@@ -205,19 +434,29 @@ private fun parseQueryParameters(rawQuery: String): List<Pair<String, String>> {
 }
 
 private fun extractFromContentDisposition(disposition: String): String? {
-    val decoded = decodeUrlComponent(raw = disposition)
-    RFC5987_FILENAME_REGEX.find(input = decoded)?.groupValues?.getOrNull(index = 1)?.let { raw ->
-        val candidate = sanitizeCandidateFilename(
-            raw = decodeUrlComponent(raw = raw.trim('"', '\'')),
-        )
+    val decoded = if ('%' in disposition && '=' !in disposition) {
+        decodeUrlComponent(raw = disposition)
+    } else {
+        disposition
+    }
+    RFC5987_FILENAME_REGEX.find(input = decoded)?.let { matchResult ->
+        val raw = matchResult.groupValues
+            .drop(n = 1)
+            .firstOrNull(predicate = String::isNotEmpty)
+            ?.trim()
+        val candidate = raw?.let {
+            sanitizeCandidateFilename(raw = decodeUrlComponent(raw = it))
+        }
         if (candidate != null) return candidate
     }
     CONTENT_DISPOSITION_FILENAME_REGEX.find(input = decoded)?.let { matchResult ->
         val raw = matchResult.groupValues
             .drop(n = 1)
             .firstOrNull(predicate = String::isNotEmpty)
-            ?.let(block = ::decodeUrlComponent)
-        val candidate = raw?.let(block = ::sanitizeCandidateFilename)
+            ?.trim()
+        val candidate = raw?.let {
+            sanitizeCandidateFilename(raw = decodeUrlComponent(raw = it))
+        }
         if (candidate != null) return candidate
     }
     return null
@@ -249,14 +488,6 @@ private fun sanitizeCandidateFilename(raw: String): String? {
         .substringAfterLast(delimiter = '/')
         .trim()
     return cleaned.takeIf(predicate = String::isNotEmpty)
-}
-
-private fun hasKnownMediaExtension(name: String): Boolean {
-    val ext = name.substringAfterLast(
-        delimiter = '.',
-        missingDelimiterValue = "",
-    ).lowercase(Locale.ROOT)
-    return ext in KNOWN_MEDIA_EXTENSIONS
 }
 
 private fun decodeUrlComponent(raw: String): String = runCatching {

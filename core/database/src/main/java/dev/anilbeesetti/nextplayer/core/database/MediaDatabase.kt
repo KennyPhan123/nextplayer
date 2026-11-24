@@ -22,7 +22,7 @@ import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistItemEntity
         PlaylistEntity::class,
         PlaylistItemEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class MediaDatabase : RoomDatabase() {
@@ -276,6 +276,12 @@ abstract class MediaDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_playlist_item_playlistId` ON `playlist_item` (`playlistId`)"
                 )
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `media_state` ADD COLUMN `title` TEXT")
             }
         }
     }
