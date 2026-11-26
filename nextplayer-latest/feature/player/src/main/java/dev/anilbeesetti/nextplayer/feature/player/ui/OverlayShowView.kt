@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.media3.common.Player
 import androidx.media3.extractor.metadata.Chapter
+import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.feature.player.extensions.noRippleClickable
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
@@ -19,6 +20,10 @@ fun BoxScope.OverlayShowView(
     videoDecoderMode: DecoderMode?,
     audioDecoderMode: DecoderMode?,
     videoContentScale: VideoContentScale,
+    enablePanGesture: Boolean = false,
+    independentAxisZoom: Boolean = true,
+    enableVolumeBoost: Boolean = false,
+    centerMixLevelDb: Int = PlayerPreferences.DEFAULT_CENTER_MIX_LEVEL_DB,
     chapters: List<Chapter>,
     currentChapterIndex: Int,
     onChapterSelected: (Chapter) -> Unit,
@@ -29,6 +34,10 @@ fun BoxScope.OverlayShowView(
     onSelectAudioClick: () -> Unit = {},
     onSubtitleOptionEvent: (SubtitleOptionsEvent) -> Unit = {},
     onVideoContentScaleChanged: (VideoContentScale) -> Unit = {},
+    onEnablePanGestureChanged: (Boolean) -> Unit = {},
+    onIndependentAxisZoomChanged: (Boolean) -> Unit = {},
+    onEnableVolumeBoostChanged: (Boolean) -> Unit = {},
+    onCenterMixLevelChanged: (Int) -> Unit = {},
 ) {
     Box(
         modifier = Modifier
@@ -45,7 +54,11 @@ fun BoxScope.OverlayShowView(
     AudioTrackSelectorView(
         show = overlayView == OverlayView.AUDIO_SELECTOR,
         player = player,
+        enableVolumeBoost = enableVolumeBoost,
+        centerMixLevelDb = centerMixLevelDb,
         onSelectAudioClick = onSelectAudioClick,
+        onEnableVolumeBoostChanged = onEnableVolumeBoostChanged,
+        onCenterMixLevelChanged = onCenterMixLevelChanged,
         onDismiss = onDismiss,
     )
 
@@ -73,7 +86,11 @@ fun BoxScope.OverlayShowView(
     VideoContentScaleSelectorView(
         show = overlayView == OverlayView.VIDEO_CONTENT_SCALE,
         videoContentScale = videoContentScale,
+        enablePanGesture = enablePanGesture,
+        independentAxisZoom = independentAxisZoom,
         onVideoContentScaleChanged = onVideoContentScaleChanged,
+        onEnablePanGestureChanged = onEnablePanGestureChanged,
+        onIndependentAxisZoomChanged = onIndependentAxisZoomChanged,
         onDismiss = onDismiss,
     )
 

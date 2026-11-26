@@ -124,6 +124,7 @@ fun MediaPlayerScreen(
     val volumeState = rememberVolumeState(
         player = player,
         showVolumePanelIfHeadsetIsOn = playerPreferences.showSystemVolumePanel,
+        enableVolumeBoost = playerPreferences.enableVolumeBoost,
     )
     player ?: return
     val metadataState = rememberMetadataState(player)
@@ -495,10 +496,18 @@ fun MediaPlayerScreen(
                 player = player,
                 overlayView = overlayView,
                 videoContentScale = videoZoomAndContentScaleState.videoContentScale,
+                enablePanGesture = playerPreferences.enablePanGesture,
+                independentAxisZoom = playerPreferences.independentAxisZoom,
+                enableVolumeBoost = playerPreferences.enableVolumeBoost,
+                centerMixLevelDb = playerPreferences.centerMixLevelDb,
                 onDismiss = { overlayView = null },
                 onSelectSubtitleClick = onSelectSubtitleClick,
                 onSubtitleOptionEvent = viewModel::onSubtitleOptionEvent,
                 onVideoContentScaleChanged = { videoZoomAndContentScaleState.onVideoContentScaleChanged(it) },
+                onEnablePanGestureChanged = viewModel::setEnablePanGesture,
+                onIndependentAxisZoomChanged = viewModel::setIndependentAxisZoom,
+                onEnableVolumeBoostChanged = viewModel::setEnableVolumeBoost,
+                onCenterMixLevelChanged = viewModel::updateCenterMixLevel,
             )
         }
     }

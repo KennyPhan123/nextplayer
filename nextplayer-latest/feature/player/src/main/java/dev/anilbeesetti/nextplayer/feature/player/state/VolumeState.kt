@@ -34,7 +34,11 @@ import kotlinx.coroutines.launch
 
 @OptIn(UnstableApi::class)
 @Composable
-fun rememberVolumeState(player: Player?, showVolumePanelIfHeadsetIsOn: Boolean): VolumeState {
+fun rememberVolumeState(
+    player: Player?,
+    showVolumePanelIfHeadsetIsOn: Boolean,
+    enableVolumeBoost: Boolean = false,
+): VolumeState {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val volumeState = remember(player) {
@@ -42,10 +46,17 @@ fun rememberVolumeState(player: Player?, showVolumePanelIfHeadsetIsOn: Boolean):
             player = player,
             context = context,
             showVolumePanelIfHeadsetIsOn = showVolumePanelIfHeadsetIsOn,
+            initialVolumeBoostEnabled = enableVolumeBoost,
             scope = scope,
         )
     }
     LaunchedEffect(key1 = player) { volumeState.initialize() }
+    LaunchedEffect(
+        key1 = player,
+        key2 = enableVolumeBoost,
+    ) {
+        volumeState.updateVolumeBoostEnabled(enabled = enableVolumeBoost)
+    }
     DisposableEffect(key1 = context) { volumeState.handleLifecycle(disposableEffectScope = this) }
     return volumeState
 }
@@ -55,6 +66,7 @@ class VolumeState(
     private val player: Player?,
     private val context: Context,
     private val showVolumePanelIfHeadsetIsOn: Boolean,
+    initialVolumeBoostEnabled: Boolean = false,
     private val scope: CoroutineScope,
 ) {
     private val audioManager = getSystemService(
@@ -64,7 +76,7 @@ class VolumeState(
 
     private val systemMaxVolume: Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
-    private var isLoudnessGainSupported: Boolean by mutableStateOf(value = false)
+    private var isLoudnessGainSupported: Boolean by mutableStateOf(value = initialVolumeBoostEnabled)
 
     private val maxBoostVolume: Int
         get() = systemMaxVolume * (MAX_VOLUME_PERCENTAGE_BOOST / MAX_VOLUME_PERCENTAGE_NORMAL - 1)
@@ -84,6 +96,15 @@ class VolumeState(
 
     var volumePercentage: Int by mutableIntStateOf(value = calculateVolumePercentage())
         private set
+
+    fun updateVolumeBoostEnabled(enabled: Boolean) {
+        isLoudnessGainSupported = enabled
+        if (!enabled && currentVolume > systemMaxVolume) {
+            currentVolume = systemMaxVolume
+            volumePercentage = calculateVolumePercentage()
+            applyVolumeBoost(volume = 0)
+        }
+    }
 
     fun syncWithSystem() {
         if (currentVolume > systemMaxVolume) return

@@ -204,6 +204,10 @@ internal fun MediaPlayerControls(
                 videoDecoderMode = state.decoderServiceState.requestedVideoMode,
                 audioDecoderMode = state.decoderServiceState.requestedAudioMode,
                 videoContentScale = videoZoomAndContentScaleState.videoContentScale,
+                enablePanGesture = playerPreferences.enablePanGesture,
+                independentAxisZoom = playerPreferences.independentAxisZoom,
+                enableVolumeBoost = playerPreferences.enableVolumeBoost,
+                centerMixLevelDb = playerPreferences.centerMixLevelDb,
                 onDismiss = { overlayView = null },
                 onVideoDecoderModeSelected = {
                     onAction(PlayerAction.SetVideoDecoderMode(mode = it))
@@ -218,6 +222,18 @@ internal fun MediaPlayerControls(
                 },
                 onVideoContentScaleChanged =
                     videoZoomAndContentScaleState::onVideoContentScaleChanged,
+                onEnablePanGestureChanged = {
+                    onAction(PlayerAction.SetEnablePanGesture(enabled = it))
+                },
+                onIndependentAxisZoomChanged = {
+                    onAction(PlayerAction.SetIndependentAxisZoom(enabled = it))
+                },
+                onEnableVolumeBoostChanged = {
+                    onAction(PlayerAction.SetEnableVolumeBoost(enabled = it))
+                },
+                onCenterMixLevelChanged = {
+                    onAction(PlayerAction.UpdateCenterMixLevel(levelDb = it))
+                },
             )
         }
     }

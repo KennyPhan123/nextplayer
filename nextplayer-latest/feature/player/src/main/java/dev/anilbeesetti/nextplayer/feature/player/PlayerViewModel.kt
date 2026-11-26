@@ -89,6 +89,14 @@ class PlayerViewModel(
             is PlayerAction.OnVideoZoomEvent -> onVideoZoomEvent(action.event)
 
             is PlayerAction.OnSubtitleOptionEvent -> onSubtitleOptionEvent(action.event)
+
+            is PlayerAction.SetEnablePanGesture -> setEnablePanGesture(action.enabled)
+
+            is PlayerAction.SetIndependentAxisZoom -> setIndependentAxisZoom(action.enabled)
+
+            is PlayerAction.SetEnableVolumeBoost -> setEnableVolumeBoost(action.enabled)
+
+            is PlayerAction.UpdateCenterMixLevel -> updateCenterMixLevel(action.levelDb)
         }
     }
 
@@ -187,6 +195,42 @@ class PlayerViewModel(
             )
         }
     }
+
+    private fun setEnablePanGesture(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(enablePanGesture = enabled)
+            }
+        }
+    }
+
+    private fun setIndependentAxisZoom(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(independentAxisZoom = enabled)
+            }
+        }
+    }
+
+    private fun setEnableVolumeBoost(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(enableVolumeBoost = enabled)
+            }
+        }
+    }
+
+    private fun updateCenterMixLevel(levelDb: Int) {
+        val clamped = levelDb.coerceIn(
+            minimumValue = PlayerPreferences.MIN_CENTER_MIX_LEVEL_DB,
+            maximumValue = PlayerPreferences.MAX_CENTER_MIX_LEVEL_DB,
+        )
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(centerMixLevelDb = clamped)
+            }
+        }
+    }
 }
 
 @Stable
@@ -211,4 +255,8 @@ sealed interface PlayerAction {
     data object ToggleTimeDisplay : PlayerAction
     data class OnVideoZoomEvent(val event: VideoZoomEvent) : PlayerAction
     data class OnSubtitleOptionEvent(val event: SubtitleOptionsEvent) : PlayerAction
+    data class SetEnablePanGesture(val enabled: Boolean) : PlayerAction
+    data class SetIndependentAxisZoom(val enabled: Boolean) : PlayerAction
+    data class SetEnableVolumeBoost(val enabled: Boolean) : PlayerAction
+    data class UpdateCenterMixLevel(val levelDb: Int) : PlayerAction
 }

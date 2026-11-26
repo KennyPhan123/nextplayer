@@ -72,6 +72,34 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun setEnablePanGesture(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(enablePanGesture = enabled) }
+        }
+    }
+
+    fun setIndependentAxisZoom(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(independentAxisZoom = enabled) }
+        }
+    }
+
+    fun setEnableVolumeBoost(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(enableVolumeBoost = enabled) }
+        }
+    }
+
+    fun updateCenterMixLevel(levelDb: Int) {
+        val clampedLevel = levelDb.coerceIn(
+            PlayerPreferences.MIN_CENTER_MIX_LEVEL_DB,
+            PlayerPreferences.MAX_CENTER_MIX_LEVEL_DB,
+        )
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(centerMixLevelDb = clampedLevel) }
+        }
+    }
+
     fun onVideoZoomEvent(event: VideoZoomEvent) {
         when (event) {
             is VideoZoomEvent.ContentScaleChanged -> {

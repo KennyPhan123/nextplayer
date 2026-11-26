@@ -115,4 +115,42 @@ class PlayerViewModelTest {
         runCurrent()
         assertTrue(viewModel.state.value.playerPreferences.showRemainingTime)
     }
+
+    @Test
+    fun `in-player zoom and audio controls sync directly with preferences repository`() = runTest(context = dispatcher) {
+        viewModel.onAction(PlayerAction.SetEnablePanGesture(enabled = true))
+        viewModel.onAction(PlayerAction.SetIndependentAxisZoom(enabled = false))
+        viewModel.onAction(PlayerAction.SetEnableVolumeBoost(enabled = true))
+        viewModel.onAction(PlayerAction.UpdateCenterMixLevel(levelDb = 12))
+        runCurrent()
+
+        assertTrue(preferences.playerPreferences.value.enablePanGesture)
+        assertFalse(preferences.playerPreferences.value.independentAxisZoom)
+        assertTrue(preferences.playerPreferences.value.enableVolumeBoost)
+        assertEquals(
+            12,
+            preferences.playerPreferences.value.centerMixLevelDb,
+        )
+        assertTrue(viewModel.state.value.playerPreferences.enablePanGesture)
+        assertFalse(viewModel.state.value.playerPreferences.independentAxisZoom)
+        assertTrue(viewModel.state.value.playerPreferences.enableVolumeBoost)
+        assertEquals(
+            12,
+            viewModel.state.value.playerPreferences.centerMixLevelDb,
+        )
+
+        viewModel.onAction(PlayerAction.UpdateCenterMixLevel(levelDb = 99))
+        runCurrent()
+        assertEquals(
+            30,
+            preferences.playerPreferences.value.centerMixLevelDb,
+        )
+
+        viewModel.onAction(PlayerAction.UpdateCenterMixLevel(levelDb = 0))
+        runCurrent()
+        assertEquals(
+            0,
+            preferences.playerPreferences.value.centerMixLevelDb,
+        )
+    }
 }

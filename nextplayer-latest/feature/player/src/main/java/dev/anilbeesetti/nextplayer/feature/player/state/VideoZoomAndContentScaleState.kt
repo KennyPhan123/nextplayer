@@ -38,11 +38,7 @@ fun rememberVideoZoomAndContentScaleState(
     onEvent: (VideoZoomEvent) -> Unit = {},
 ): VideoZoomAndContentScaleState {
     val coroutineScope = rememberCoroutineScope()
-    val videoZoomAndContentScaleState = remember(
-        enableZoomGesture,
-        independentAxisZoom,
-        enablePanGesture,
-    ) {
+    val videoZoomAndContentScaleState = remember(player) {
         VideoZoomAndContentScaleState(
             player = player,
             initialContentScale = initialContentScale,
@@ -52,6 +48,10 @@ fun rememberVideoZoomAndContentScaleState(
             onEvent = onEvent,
             coroutineScope = coroutineScope,
         )
+    }.apply {
+        this.enableZoomGesture = enableZoomGesture
+        this.independentAxisZoom = independentAxisZoom
+        this.enablePanGesture = enablePanGesture
     }
     LaunchedEffect(key1 = player) { videoZoomAndContentScaleState.observe() }
     return videoZoomAndContentScaleState
@@ -61,9 +61,9 @@ fun rememberVideoZoomAndContentScaleState(
 class VideoZoomAndContentScaleState(
     private val player: Player,
     initialContentScale: VideoContentScale,
-    private val enableZoomGesture: Boolean = true,
-    val independentAxisZoom: Boolean = true,
-    private val enablePanGesture: Boolean = true,
+    enableZoomGesture: Boolean = true,
+    independentAxisZoom: Boolean = true,
+    enablePanGesture: Boolean = true,
     private val onEvent: (VideoZoomEvent) -> Unit,
     private val coroutineScope: CoroutineScope,
 ) {
@@ -72,6 +72,10 @@ class VideoZoomAndContentScaleState(
         private const val MAX_ZOOM = 4f
         private const val CONTENT_SCALE_INDICATOR_DURATION_MS = 1000L
     }
+
+    var enableZoomGesture: Boolean by mutableStateOf(value = enableZoomGesture)
+    var independentAxisZoom: Boolean by mutableStateOf(value = independentAxisZoom)
+    var enablePanGesture: Boolean by mutableStateOf(value = enablePanGesture)
 
     var videoContentScale: VideoContentScale by mutableStateOf(value = initialContentScale)
         private set

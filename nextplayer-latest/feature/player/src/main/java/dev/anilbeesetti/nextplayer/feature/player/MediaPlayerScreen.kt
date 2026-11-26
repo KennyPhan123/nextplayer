@@ -69,6 +69,7 @@ internal fun MediaPlayerContent(
         rememberVolumeState(
             player = player,
             showVolumePanelIfHeadsetIsOn = playerPreferences.showSystemVolumePanel,
+            enableVolumeBoost = playerPreferences.enableVolumeBoost,
         )
     } else {
         null

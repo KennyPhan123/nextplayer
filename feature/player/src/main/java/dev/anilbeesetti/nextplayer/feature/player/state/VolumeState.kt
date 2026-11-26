@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 fun rememberVolumeState(
     player: Player?,
     showVolumePanelIfHeadsetIsOn: Boolean,
+    enableVolumeBoost: Boolean = false,
 ): VolumeState {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -45,10 +46,14 @@ fun rememberVolumeState(
             player = player,
             context = context,
             showVolumePanelIfHeadsetIsOn = showVolumePanelIfHeadsetIsOn,
+            initialVolumeBoostEnabled = enableVolumeBoost,
             scope = scope,
         )
     }
     LaunchedEffect(player) { volumeState.initialize() }
+    LaunchedEffect(player, enableVolumeBoost) {
+        volumeState.updateVolumeBoostEnabled(enableVolumeBoost)
+    }
     DisposableEffect(context) { volumeState.handleLifecycle(this) }
     return volumeState
 }
@@ -58,13 +63,14 @@ class VolumeState(
     private val player: Player?,
     private val context: Context,
     private val showVolumePanelIfHeadsetIsOn: Boolean,
+    initialVolumeBoostEnabled: Boolean = false,
     private val scope: CoroutineScope,
 ) {
     private val audioManager = getSystemService(context, AudioManager::class.java)!!
 
     private val systemMaxVolume: Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
-    private var isLoudnessGainSupported: Boolean by mutableStateOf(false)
+    private var isLoudnessGainSupported: Boolean by mutableStateOf(initialVolumeBoostEnabled)
 
     private val maxBoostVolume: Int
         get() = systemMaxVolume * (MAX_VOLUME_PERCENTAGE_BOOST / MAX_VOLUME_PERCENTAGE_NORMAL - 1)
@@ -80,6 +86,15 @@ class VolumeState(
 
     var volumePercentage: Int by mutableIntStateOf(calculateVolumePercentage())
         private set
+
+    fun updateVolumeBoostEnabled(enabled: Boolean) {
+        isLoudnessGainSupported = enabled
+        if (!enabled && currentVolume > systemMaxVolume) {
+            currentVolume = systemMaxVolume
+            volumePercentage = calculateVolumePercentage()
+            applyVolumeBoost(0)
+        }
+    }
 
     fun syncWithSystem() {
         if (currentVolume > systemMaxVolume) return
